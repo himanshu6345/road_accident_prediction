@@ -76,7 +76,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_resource
 def load_models_and_transformers():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
