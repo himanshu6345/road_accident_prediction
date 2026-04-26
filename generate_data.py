@@ -22,11 +22,11 @@ def generate_mock_data(num_samples=5000, output_file='accident_data.csv'):
         
         # Base speed limit depending on road type
         if road == 'Highway':
-            speed_limit = random.choice([55, 65, 70])
+            speed_limit = random.choice([55, 65, 70, 80, 100, 120, 150, 200, 220])
         elif road == 'City Street':
-            speed_limit = random.choice([25, 30, 35])
+            speed_limit = random.choice([25, 30, 35, 45, 60, 80])
         else:
-            speed_limit = random.choice([35, 45, 55])
+            speed_limit = random.choice([35, 45, 55, 70, 90, 120])
             
         driver_age = int(np.random.normal(35, 12))
         driver_age = max(16, min(driver_age, 90)) # Bound age between 16 and 90
@@ -49,6 +49,13 @@ def generate_mock_data(num_samples=5000, output_file='accident_data.csv'):
             severity_score += 2
             
         if driver_age < 21 or driver_age > 75:
+            severity_score += 1
+            
+        if speed_limit >= 120:
+            severity_score += 4
+        elif speed_limit >= 80:
+            severity_score += 2
+        elif speed_limit >= 65:
             severity_score += 1
             
         # Add very minimal random noise (0 or 1) so models can achieve higher accuracy

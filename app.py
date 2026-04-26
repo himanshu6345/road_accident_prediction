@@ -114,7 +114,7 @@ def main():
             
         with col2:
             vehicle_type = st.selectbox("Vehicle Type", ['Car', 'Truck', 'Motorcycle', 'Bus'])
-            speed_limit = st.slider("Speed Limit (mph)", min_value=15, max_value=85, value=45, step=5)
+            speed_limit = st.slider("Speed Limit", min_value=15, max_value=220, value=45, step=5)
             driver_age = st.number_input("Driver Age", min_value=16, max_value=100, value=35)
 
     # --- PREDICTION LOGIC ---
