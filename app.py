@@ -99,11 +99,7 @@ def main():
         st.error("⚠️ Models not found. Please run the training script (`train_model.py`) first to generate the models.")
         return
 
-    # Add a model selection dropdown
-    st.write("### ⚙️ Select Model")
-    model_choice = st.selectbox("Choose the algorithm:", ["Support Vector Machine (SVM)", "Random Forest"])
-    
-    selected_model = svm_model if model_choice == "Support Vector Machine (SVM)" else rf_model
+    # We will use both models for prediction to provide a consensus
 
     # --- INPUT FORM ---
     with st.container():
@@ -146,17 +142,28 @@ def main():
             # Scale features
             input_scaled = scaler.transform(input_data)
 
-            # Predict
-            prediction_encoded = selected_model.predict(input_scaled)
-            prediction_label = target_encoder.inverse_transform(prediction_encoded)[0]
+            # Predict with both models
+            rf_pred_encoded = rf_model.predict(input_scaled)
+            svm_pred_encoded = svm_model.predict(input_scaled)
             
-            # Display Result
-            css_class = f"severity-{prediction_label.lower()}"
+            rf_label = target_encoder.inverse_transform(rf_pred_encoded)[0]
+            svm_label = target_encoder.inverse_transform(svm_pred_encoded)[0]
             
+            # Determine overall condition
+            high_risk_labels = ['Severe', 'Fatal']
+            is_high_risk = (rf_label in high_risk_labels) or (svm_label in high_risk_labels)
+            
+            # Display explicitly if it is safe or a risk alert
+            if is_high_risk:
+                st.error("🚨 **RISK ALERT: IT IS NOT SAFE TO DRIVE!**")
+            else:
+                st.success("✅ **DRIVE SAFE: CONDITIONS ARE FAVORABLE!**")
+                
             st.markdown(f"""
             <div class='prediction-card'>
-                <h3 style='color: #34495e;'>Predicted Accident Severity:</h3>
-                <div class='{css_class}'>{prediction_label}</div>
+                <h3 style='color: #34495e;'>Algorithm Predictions:</h3>
+                <p><b>Random Forest:</b> <span class='severity-{rf_label.lower()}'>{rf_label}</span></p>
+                <p><b>Support Vector Machine:</b> <span class='severity-{svm_label.lower()}'>{svm_label}</span></p>
             </div>
             """, unsafe_allow_html=True)
             
@@ -171,24 +178,18 @@ def main():
             if vehicle_type == 'Motorcycle':
                 recommendations.append("Motorcycles offer less protection in collisions.")
 
-            if prediction_label in ['Fatal', 'Severe']:
-                st.error("🚨 **CRITICAL RISK LEVEL**")
-                st.write("The current combination of conditions highly correlates with severe or fatal accidents.")
+            st.write("### 🔍 Situational Analysis")
+            if is_high_risk:
+                st.write("The current combination of conditions highly correlates with severe or fatal accidents according to our models.")
                 for rec in recommendations:
                     st.write(f"- ⚠️ {rec}")
                 st.write("**Recommendation:** Avoid driving if possible, or reduce speed significantly.")
-            elif prediction_label == 'Moderate':
-                st.warning("⚠️ **MODERATE RISK LEVEL**")
-                st.write("Please exercise caution. Factors increasing risk:")
-                for rec in recommendations:
-                    st.write(f"- {rec}")
-                if not recommendations:
-                    st.write("- General traffic risks apply.")
             else:
-                st.success("✅ **LOWER RISK LEVEL**")
-                st.write("Conditions are generally favorable, but always remain alert.")
+                st.write("Conditions are generally safe, but please exercise standard caution. Factors noted:")
                 for rec in recommendations:
                     st.write(f"- Note: {rec}")
+                if not recommendations:
+                    st.write("- No extreme risk factors detected in the current environment.")
 
 if __name__ == "__main__":
     main()
