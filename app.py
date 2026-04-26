@@ -191,5 +191,25 @@ def main():
                 if not recommendations:
                     st.write("- No extreme risk factors detected in the current environment.")
 
+            # --- ADD PROBABILITY GRAPH ---
+            st.write("---")
+            st.write("### 📊 Prediction Probabilities")
+            st.write("This chart shows the confidence level of the Random Forest algorithm across the different severity categories.")
+            
+            # Extract probabilities
+            rf_probs = rf_model.predict_proba(input_scaled)[0]
+            
+            # Create a DataFrame for Streamlit bar chart
+            prob_df = pd.DataFrame({
+                'Severity': target_encoder.classes_,
+                'Probability (%)': np.round(rf_probs * 100, 2)
+            })
+            
+            # Set 'Severity' as the index so it appears on the x-axis
+            prob_df.set_index('Severity', inplace=True)
+            
+            # Display the chart
+            st.bar_chart(prob_df, height=300)
+
 if __name__ == "__main__":
     main()
