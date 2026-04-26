@@ -248,5 +248,54 @@ def main():
             
             st.line_chart(prob_df, height=300)
 
+    # --- AI CHATBOT INTERFACE ---
+    st.markdown("---")
+    st.header("💬 AI Data Assistant")
+    st.write("Ask me anything about the predictions, algorithms, or your dataset!")
+    
+    # Initialize chat history
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I am your AI Data Assistant. I can help explain the Random Forest and SVM predictions, or answer questions about your data. How can I help you today?"})
+
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # React to user input
+    if prompt := st.chat_input("Ask a question..."):
+        # Display user message in chat message container
+        st.chat_message("user").markdown(prompt)
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        # --- MOCK AI RESPONSE GENERATOR ---
+        # NOTE FOR USER: If you have an OpenAI or Gemini API key, you can integrate it here!
+        # Example for OpenAI:
+        # import openai
+        # openai.api_key = "YOUR_API_KEY"
+        # response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=st.session_state.messages)
+        # bot_response = response.choices[0].message.content
+        
+        # We will use a mock rule-based response for now
+        lower_prompt = prompt.lower()
+        if "fatal" in lower_prompt or "severe" in lower_prompt:
+            bot_response = "The models typically predict 'Fatal' or 'Severe' when high-risk factors align. For example, driving at extreme speeds, during bad weather, or on a Motorcycle drastically increases the severity score."
+        elif "random forest" in lower_prompt or "rf" in lower_prompt:
+            bot_response = "Random Forest is an ensemble learning method that constructs multiple decision trees during training and outputs the most popular class. It's very robust against overfitting!"
+        elif "svm" in lower_prompt or "support vector" in lower_prompt:
+            bot_response = "Support Vector Machine (SVM) finds the optimal boundary that separates our different severity classes. We are using an 'RBF' kernel to handle complex, non-linear relationships in the dataset."
+        elif "dataset" in lower_prompt or "data" in lower_prompt:
+            bot_response = f"Your current dataset is using {len(feature_info)} input features to predict the '{target_col}' column."
+        else:
+            bot_response = "That is a great question! Since I am currently running in 'Mock Mode' (without a live OpenAI/Gemini API key), my knowledge is limited to basic explanations of our models (Random Forest and SVM) and your dataset structure. Try asking me about those!"
+            
+        # Display assistant response in chat message container
+        with st.chat_message("assistant"):
+            st.markdown(bot_response)
+        # Add assistant response to chat history
+        st.session_state.messages.append({"role": "assistant", "content": bot_response})
+
 if __name__ == "__main__":
     main()
