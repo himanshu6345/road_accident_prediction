@@ -17,6 +17,7 @@ def generate_mock_data(num_samples=5000, output_file='accident_data.csv'):
     for _ in range(num_samples):
         weather = random.choice(weather_conditions)
         road = random.choice(road_types)
+        road_cond = random.choice(['Normal', 'Wet', 'Potholes', 'Hill Area'])
         time = random.choice(time_of_day)
         vehicle = random.choice(vehicle_types)
         
@@ -58,6 +59,11 @@ def generate_mock_data(num_samples=5000, output_file='accident_data.csv'):
         elif speed_limit >= 65:
             severity_score += 1
             
+        if road_cond == 'Hill Area':
+            severity_score += 3
+        elif road_cond == 'Potholes' or road_cond == 'Wet':
+            severity_score += 1
+            
         # Add very minimal random noise (0 or 1) so models can achieve higher accuracy
         severity_score += random.randint(0, 1)
         
@@ -71,9 +77,9 @@ def generate_mock_data(num_samples=5000, output_file='accident_data.csv'):
         else:
             severity = 'Fatal'
             
-        data.append([weather, road, speed_limit, time, vehicle, driver_age, severity])
+        data.append([weather, road, road_cond, speed_limit, time, vehicle, driver_age, severity])
         
-    df = pd.DataFrame(data, columns=['Weather_Condition', 'Road_Type', 'Speed_Limit', 'Time_of_Day', 'Vehicle_Type', 'Driver_Age', 'Accident_Severity'])
+    df = pd.DataFrame(data, columns=['Weather_Condition', 'Road_Type', 'Road_Condition', 'Speed_Limit', 'Time_of_Day', 'Vehicle_Type', 'Driver_Age', 'Accident_Severity'])
     
     # Introduce some missing values to simulate real-world data
     for col in ['Weather_Condition', 'Driver_Age']:

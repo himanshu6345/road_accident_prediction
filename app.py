@@ -118,6 +118,7 @@ def load_default_models():
         feature_info = {
             'Weather_Condition': {'type': 'categorical', 'options': ['Clear', 'Rain', 'Snow', 'Fog']},
             'Road_Type': {'type': 'categorical', 'options': ['Highway', 'City Street', 'Rural Road']},
+            'Road_Condition': {'type': 'categorical', 'options': ['Normal', 'Wet', 'Potholes', 'Hill Area']},
             'Speed_Limit': {'type': 'numerical', 'min': 15.0, 'max': 220.0, 'mean': 45.0},
             'Time_of_Day': {'type': 'categorical', 'options': ['Morning', 'Afternoon', 'Evening', 'Night']},
             'Vehicle_Type': {'type': 'categorical', 'options': ['Car', 'Truck', 'Motorcycle', 'Bus']},
@@ -128,7 +129,7 @@ def load_default_models():
             'rf': rf_model, 'svm': svm_model, 'scaler': scaler,
             'label_encoders': label_encoders, 'target_encoder': target_encoder,
             'feature_info': feature_info,
-            'cat_cols': ['Weather_Condition', 'Road_Type', 'Time_of_Day', 'Vehicle_Type'],
+            'cat_cols': ['Weather_Condition', 'Road_Type', 'Road_Condition', 'Time_of_Day', 'Vehicle_Type'],
             'num_cols': ['Speed_Limit', 'Driver_Age'],
             'target_col': 'Accident_Severity'
         }
