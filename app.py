@@ -75,11 +75,19 @@ def train_dynamic_model(df, target_col):
     X_scaled = scaler.fit_transform(X)
     
     # Train Models
-    rf_model = RandomForestClassifier(n_estimators=50, random_state=42)
+    # Train Models
+    rf_model = RandomForestClassifier(n_estimators=50, n_jobs=-1, random_state=42)
     rf_model.fit(X_scaled, y)
     
+    # SVM with RBF kernel is extremely slow on large datasets (O(n^3)). 
+    # We subsample to a maximum of 2000 rows to ensure fast loading times.
     svm_model = SVC(kernel='rbf', probability=True, random_state=42)
-    svm_model.fit(X_scaled, y)
+    if len(X_scaled) > 2000:
+        np.random.seed(42)
+        indices = np.random.choice(len(X_scaled), 2000, replace=False)
+        svm_model.fit(X_scaled[indices], y[indices])
+    else:
+        svm_model.fit(X_scaled, y)
     
     # Save to session state
     st.session_state['models'] = {
