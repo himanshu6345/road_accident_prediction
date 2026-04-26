@@ -160,10 +160,35 @@ def main():
             </div>
             """, unsafe_allow_html=True)
             
-            if prediction_label == 'Fatal' or prediction_label == 'Severe':
-                st.warning("⚠️ High Risk Conditions Detected! Drive with extreme caution.")
+            # Display dynamic recommendations based on condition
+            recommendations = []
+            if weather in ['Snow', 'Fog', 'Rain']:
+                recommendations.append(f"Visibility and traction are reduced due to {weather}.")
+            if speed_limit >= 65:
+                recommendations.append(f"High speeds ({speed_limit} mph) significantly increase accident severity.")
+            if time_of_day == 'Night':
+                recommendations.append("Nighttime driving reduces visibility.")
+            if vehicle_type == 'Motorcycle':
+                recommendations.append("Motorcycles offer less protection in collisions.")
+
+            if prediction_label in ['Fatal', 'Severe']:
+                st.error("🚨 **CRITICAL RISK LEVEL**")
+                st.write("The current combination of conditions highly correlates with severe or fatal accidents.")
+                for rec in recommendations:
+                    st.write(f"- ⚠️ {rec}")
+                st.write("**Recommendation:** Avoid driving if possible, or reduce speed significantly.")
+            elif prediction_label == 'Moderate':
+                st.warning("⚠️ **MODERATE RISK LEVEL**")
+                st.write("Please exercise caution. Factors increasing risk:")
+                for rec in recommendations:
+                    st.write(f"- {rec}")
+                if not recommendations:
+                    st.write("- General traffic risks apply.")
             else:
-                st.info("ℹ️ Risk conditions are relatively lower, but always stay alert.")
+                st.success("✅ **LOWER RISK LEVEL**")
+                st.write("Conditions are generally favorable, but always remain alert.")
+                for rec in recommendations:
+                    st.write(f"- Note: {rec}")
 
 if __name__ == "__main__":
     main()
