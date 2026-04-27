@@ -29,6 +29,46 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- USER AUTHENTICATION ---
+USERS = {
+    "admin": "admin123",
+    "guest": "guest"
+}
+
+def check_password():
+    """Returns `True` if the user had a correct password."""
+
+    def password_entered():
+        if (
+            st.session_state.get("username") in USERS
+            and st.session_state.get("password") == USERS[st.session_state["username"]]
+        ):
+            st.session_state["password_correct"] = True
+            if "password" in st.session_state:
+                del st.session_state["password"]  # don't store password
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
+        # Show inputs for username + password
+        st.markdown("<br><br><h2 style='text-align: center;'>🔒 Authorized Access Only</h2>", unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1,2,1])
+        with col2:
+            with st.container():
+                st.write("Please sign in to access the dashboard.")
+                st.text_input("Username", key="username")
+                st.text_input("Password", type="password", key="password")
+                if st.button("Sign In", use_container_width=True):
+                    password_entered()
+                    st.rerun()
+                
+                if "password_correct" in st.session_state and not st.session_state["password_correct"]:
+                    st.error("😕 Username or password incorrect")
+        return False
+    else:
+        # Password correct.
+        return True
+
 # --- DYNAMIC TRAINING FUNCTION ---
 def train_dynamic_model(df, target_col):
     st.session_state['training'] = True
@@ -147,6 +187,14 @@ def main():
     st.markdown("<div class='subtitle'>Upload any dataset to train and predict instantly!</div>", unsafe_allow_html=True)
 
     # Sidebar for Upload
+    st.sidebar.header("🚪 Session")
+    st.sidebar.write(f"Logged in as: **{st.session_state.get('username', 'User')}**")
+    if st.sidebar.button("Logout"):
+        for key in st.session_state.keys():
+            del st.session_state[key]
+        st.rerun()
+        
+    st.sidebar.markdown("---")
     st.sidebar.header("📁 Upload Custom Dataset")
     uploaded_file = st.sidebar.file_uploader("Upload CSV File", type=["csv"])
     
@@ -422,4 +470,5 @@ def main():
         st.session_state.messages.append({"role": "assistant", "content": bot_response})
 
 if __name__ == "__main__":
-    main()
+    if check_password():
+        main()
