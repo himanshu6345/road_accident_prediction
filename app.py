@@ -277,19 +277,50 @@ def main():
                 else:
                     st.write("- No extreme risk factors detected.")
             
-            # Probabilities Graph
+            # --- OUTCOME PROBABILITIES ---
             st.write("---")
-            st.write("### 📈 Prediction Probabilities")
+            st.write("### 📊 Specific Outcome Risks")
             
-            # Use RF probabilities
+            # Use RF probabilities to calculate specific risks
             rf_probs = rf_model.predict_proba(input_scaled)[0]
-            prob_df = pd.DataFrame({
-                'Class': target_encoder.classes_,
-                'Probability (%)': np.round(rf_probs * 100, 2)
-            })
-            prob_df.set_index('Class', inplace=True)
+            classes = list(target_encoder.classes_)
             
-            st.line_chart(prob_df, height=300)
+            p_fatal = rf_probs[classes.index('Fatal')] if 'Fatal' in classes else 0
+            p_severe = rf_probs[classes.index('Severe')] if 'Severe' in classes else 0
+            p_moderate = rf_probs[classes.index('Moderate')] if 'Moderate' in classes else 0
+            p_minor = rf_probs[classes.index('Minor')] if 'Minor' in classes else 0
+            
+            # Calculate independent chances (out of 100%)
+            chance_death = p_fatal * 100
+            chance_injury = min((p_severe + (0.7 * p_moderate)) * 100, 100.0)
+            chance_damage = min((p_minor + p_moderate + (0.5 * p_severe)) * 100, 100.0)
+            
+            # Create 3 columns for individual metric visualiztion
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown(f"<h4 style='text-align: center; color: #c0392b;'>💀 Chances of Death</h4>", unsafe_allow_html=True)
+                st.progress(int(chance_death))
+                st.markdown(f"<h2 style='text-align: center;'>{chance_death:.1f}%</h2>", unsafe_allow_html=True)
+                
+            with col2:
+                st.markdown(f"<h4 style='text-align: center; color: #e67e22;'>🚑 Chances of Injuries</h4>", unsafe_allow_html=True)
+                st.progress(int(chance_injury))
+                st.markdown(f"<h2 style='text-align: center;'>{chance_injury:.1f}%</h2>", unsafe_allow_html=True)
+                
+            with col3:
+                st.markdown(f"<h4 style='text-align: center; color: #f1c40f;'>💥 Property Damages</h4>", unsafe_allow_html=True)
+                st.progress(int(chance_damage))
+                st.markdown(f"<h2 style='text-align: center;'>{chance_damage:.1f}%</h2>", unsafe_allow_html=True)
+                
+            # Keep the original full probability graph as an expander for nerds
+            with st.expander("View Full Severity Probability Breakdown"):
+                prob_df = pd.DataFrame({
+                    'Severity Level': classes,
+                    'Probability (%)': np.round(rf_probs * 100, 2)
+                })
+                prob_df.set_index('Severity Level', inplace=True)
+                st.bar_chart(prob_df, height=250)
 
     # --- AI CHATBOT INTERFACE ---
     st.markdown("---")
