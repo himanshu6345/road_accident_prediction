@@ -139,7 +139,10 @@ def load_default_models():
 
 # --- MAIN APP ---
 def main():
-    st.image("/Users/himanshuprajapati/.gemini/antigravity/brain/b065bf0b-01c9-4753-b07a-fecb377c74d7/top_banner_1777291442804.png", use_container_width=True)
+    # Display normal sized top image centered
+    col1, col2, col3 = st.columns([1, 4, 1])
+    with col2:
+        st.image("/Users/himanshuprajapati/.gemini/antigravity/brain/b065bf0b-01c9-4753-b07a-fecb377c74d7/top_image_normal_1777292074823.png", use_container_width=True)
     st.markdown("<h1>Dynamic Data Mining Predictor</h1>", unsafe_allow_html=True)
     st.markdown("<div class='subtitle'>Upload any dataset to train and predict instantly!</div>", unsafe_allow_html=True)
 
@@ -364,7 +367,10 @@ def main():
     except Exception as e:
         st.warning("Could not generate 3D graph for the current dataset.")
 
-    st.image("/Users/himanshuprajapati/.gemini/antigravity/brain/b065bf0b-01c9-4753-b07a-fecb377c74d7/bottom_banner_1777291458669.png", use_container_width=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 4, 1])
+    with col2:
+        st.image("/Users/himanshuprajapati/.gemini/antigravity/brain/b065bf0b-01c9-4753-b07a-fecb377c74d7/bottom_image_normal_1777292095383.png", use_container_width=True)
 
     # --- AI CHATBOT INTERFACE ---
     st.markdown("---")
