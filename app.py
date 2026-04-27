@@ -243,6 +243,40 @@ def main():
             </div>
             """, unsafe_allow_html=True)
             
+            # --- SITUATIONAL ANALYSIS ---
+            st.write("### 🔍 Situational Analysis")
+            
+            recommendations = []
+            if 'Weather_Condition' in user_inputs and user_inputs['Weather_Condition'] in ['Snow', 'Fog', 'Rain']:
+                recommendations.append(f"Visibility and traction are reduced due to {user_inputs['Weather_Condition']}.")
+            if 'Speed_Limit' in user_inputs and user_inputs['Speed_Limit'] >= 80:
+                recommendations.append(f"High speeds ({user_inputs['Speed_Limit']}) significantly increase accident severity.")
+            if 'Time_of_Day' in user_inputs and user_inputs['Time_of_Day'] == 'Night':
+                recommendations.append("Nighttime driving reduces visibility.")
+            if 'Vehicle_Type' in user_inputs and user_inputs['Vehicle_Type'] == 'Motorcycle':
+                recommendations.append("Motorcycles offer less protection in collisions.")
+            if 'Road_Condition' in user_inputs and user_inputs['Road_Condition'] in ['Hill Area', 'Potholes']:
+                recommendations.append(f"Road condition ({user_inputs['Road_Condition']}) introduces severe handling risks.")
+
+            # Generic risk check (works for default target classes and common binary classes)
+            high_risk_labels = ['Severe', 'Fatal', 'High', 'Yes', 1, '1', 'True', True]
+            is_high_risk = (rf_label in high_risk_labels) or (svm_label in high_risk_labels)
+            
+            if is_high_risk:
+                st.error("🚨 **RISK ALERT: HIGH SEVERITY PREDICTED!**")
+                if recommendations:
+                    st.write("The current combination of conditions correlates with high-risk accidents. Factors noted:")
+                    for rec in recommendations:
+                        st.write(f"- ⚠️ {rec}")
+            else:
+                st.success("✅ **DRIVE SAFE: CONDITIONS ARE FAVORABLE!**")
+                if recommendations:
+                    st.write("Conditions are generally safe, but please exercise standard caution. Factors noted:")
+                    for rec in recommendations:
+                        st.write(f"- Note: {rec}")
+                else:
+                    st.write("- No extreme risk factors detected.")
+            
             # Probabilities Graph
             st.write("---")
             st.write("### 📈 Prediction Probabilities")
