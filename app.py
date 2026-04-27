@@ -8,6 +8,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.impute import SimpleImputer
+import plotly.express as px
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -138,6 +139,7 @@ def load_default_models():
 
 # --- MAIN APP ---
 def main():
+    st.image("/Users/himanshuprajapati/.gemini/antigravity/brain/b065bf0b-01c9-4753-b07a-fecb377c74d7/top_banner_1777291442804.png", use_container_width=True)
     st.markdown("<h1>Dynamic Data Mining Predictor</h1>", unsafe_allow_html=True)
     st.markdown("<div class='subtitle'>Upload any dataset to train and predict instantly!</div>", unsafe_allow_html=True)
 
@@ -321,6 +323,48 @@ def main():
                 })
                 prob_df.set_index('Severity Level', inplace=True)
                 st.bar_chart(prob_df, height=250)
+
+
+    # --- 3D DATA VISUALIZATION ---
+    st.write("---")
+    st.write("### 🌌 3D Data Universe")
+    st.write("Explore the multi-dimensional relationships of your dataset in this interactive 3D space.")
+    
+    try:
+        if uploaded_file is not None:
+            uploaded_file.seek(0)
+            full_df = pd.read_csv(uploaded_file)
+            plot_df = full_df.sample(min(1000, len(full_df)))
+            cols = plot_df.columns.tolist()
+        else:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            full_df = pd.read_csv(os.path.join(current_dir, 'accident_data.csv'))
+            plot_df = full_df.sample(min(1000, len(full_df)))
+            cols = plot_df.columns.tolist()
+            
+        if len(cols) >= 3:
+            # Try to pick interesting columns for X, Y, Z
+            x_col = num_cols[0] if len(num_cols) > 0 else cols[0]
+            y_col = num_cols[1] if len(num_cols) > 1 else cols[1]
+            z_col = cat_cols[0] if len(cat_cols) > 0 else cols[2]
+            
+            fig = px.scatter_3d(
+                plot_df, 
+                x=x_col, 
+                y=y_col, 
+                z=z_col, 
+                color=target_col if target_col in cols else cols[-1],
+                opacity=0.7,
+                title="3D Feature Distribution"
+            )
+            fig.update_layout(margin=dict(l=0, r=0, b=0, t=30), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Dataset requires at least 3 columns for 3D visualization.")
+    except Exception as e:
+        st.warning("Could not generate 3D graph for the current dataset.")
+
+    st.image("/Users/himanshuprajapati/.gemini/antigravity/brain/b065bf0b-01c9-4753-b07a-fecb377c74d7/bottom_banner_1777291458669.png", use_container_width=True)
 
     # --- AI CHATBOT INTERFACE ---
     st.markdown("---")
