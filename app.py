@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
+import json
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -29,19 +30,37 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- USER AUTHENTICATION ---
-USERS = {
-    "admin": "admin123",
-    "guest": "guest"
-}
+# --- USER AUTHENTICATION & DATABASE ---
+USERS_DB = "users.json"
+
+def load_users():
+    if os.path.exists(USERS_DB):
+        with open(USERS_DB, "r") as f:
+            return json.load(f)
+    else:
+        # Default users
+        default_users = {
+            "admin": "admin123",
+            "guest": "guest"
+        }
+        with open(USERS_DB, "w") as f:
+            json.dump(default_users, f)
+        return default_users
+
+def save_user(username, password):
+    users = load_users()
+    users[username] = password
+    with open(USERS_DB, "w") as f:
+        json.dump(users, f)
 
 def check_password():
     """Returns `True` if the user had a correct password."""
+    users = load_users()
 
     def password_entered():
         if (
-            st.session_state.get("username") in USERS
-            and st.session_state.get("password") == USERS[st.session_state["username"]]
+            st.session_state.get("username") in users
+            and st.session_state.get("password") == users[st.session_state["username"]]
         ):
             st.session_state["password_correct"] = True
             if "password" in st.session_state:
@@ -50,11 +69,12 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
-        # Show inputs for username + password
         st.markdown("<br><br><h2 style='text-align: center;'>🔒 Authorized Access Only</h2>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
-            with st.container():
+            tab1, tab2 = st.tabs(["Sign In", "Register"])
+            
+            with tab1:
                 st.write("Please sign in to access the dashboard.")
                 st.text_input("Username", key="username")
                 st.text_input("Password", type="password", key="password")
@@ -64,6 +84,19 @@ def check_password():
                 
                 if "password_correct" in st.session_state and not st.session_state["password_correct"]:
                     st.error("😕 Username or password incorrect")
+                    
+            with tab2:
+                st.write("Create a new account.")
+                new_user = st.text_input("Choose Username", key="new_username")
+                new_pass = st.text_input("Choose Password", type="password", key="new_password")
+                if st.button("Register Account", use_container_width=True):
+                    if new_user in users:
+                        st.error("⚠️ Username already exists! Choose another.")
+                    elif new_user == "" or new_pass == "":
+                        st.error("⚠️ Username and Password cannot be empty.")
+                    else:
+                        save_user(new_user, new_pass)
+                        st.success("✅ Account created! Please switch to the Sign In tab to log in.")
         return False
     else:
         # Password correct.
