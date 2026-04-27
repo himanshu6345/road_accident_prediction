@@ -5,6 +5,10 @@ import joblib
 import os
 import json
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -230,7 +234,16 @@ def main():
         
     st.sidebar.markdown("---")
     st.sidebar.header("⚙️ AI Settings")
-    gemini_api_key = st.sidebar.text_input("Gemini API Key (Optional)", type="password", help="Enter your Gemini API key to activate the live AI Chatbot.")
+    
+    # Auto-load key from environment or secrets if available
+    env_key = os.getenv("GEMINI_API_KEY", "")
+    try:
+        secret_key = st.secrets.get("GEMINI_API_KEY", "")
+    except FileNotFoundError:
+        secret_key = ""
+        
+    default_api_key = secret_key or env_key
+    gemini_api_key = st.sidebar.text_input("Gemini API Key", value=default_api_key, type="password", help="Enter your Gemini API key to activate the live AI Chatbot.")
     
     st.sidebar.markdown("---")
     st.sidebar.header("📁 Upload Custom Dataset")
