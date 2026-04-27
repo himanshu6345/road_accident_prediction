@@ -519,9 +519,31 @@ def main():
             except Exception as e:
                 bot_response = f"Failed to generate response: {e}"
         else:
-            # MOCK OFFLINE RESPONSE
+            # OWN CUSTOM LOCAL DATA AGENT
             lower_prompt = prompt.lower()
-            if "fatal" in lower_prompt or "severe" in lower_prompt:
+            
+            # Simple Math & Data Queries
+            if "speed limit" in lower_prompt and "average" in lower_prompt:
+                if 'Speed_Limit' in full_df.columns:
+                    bot_response = f"📊 The average speed limit across the entire dataset is **{full_df['Speed_Limit'].mean():.2f} mph**."
+                else: bot_response = "I couldn't find the 'Speed_Limit' column in your dataset."
+            elif "speed limit" in lower_prompt and ("highest" in lower_prompt or "max" in lower_prompt):
+                if 'Speed_Limit' in full_df.columns:
+                    bot_response = f"📊 The highest speed limit recorded in the dataset is **{full_df['Speed_Limit'].max()} mph**."
+                else: bot_response = "I couldn't find the 'Speed_Limit' column in your dataset."
+            elif "fatal" in lower_prompt and ("how many" in lower_prompt or "count" in lower_prompt):
+                if 'Accident_Severity' in full_df.columns:
+                    count = len(full_df[full_df['Accident_Severity'] == 'Fatal'])
+                    bot_response = f"⚠️ There are exactly **{count}** fatal accidents recorded in your dataset."
+                else: bot_response = "I couldn't find the 'Accident_Severity' column to count fatalities."
+            elif "rain" in lower_prompt and ("how many" in lower_prompt or "count" in lower_prompt):
+                if 'Weather_Conditions' in full_df.columns:
+                    count = len(full_df[full_df['Weather_Conditions'] == 'Raining'])
+                    bot_response = f"🌧️ There are **{count}** accidents that occurred during rainy weather conditions."
+                else: bot_response = "I couldn't find the 'Weather_Conditions' column."
+            elif "row" in lower_prompt or "size" in lower_prompt or "how big" in lower_prompt:
+                bot_response = f"📈 Your dataset currently contains **{len(full_df)} rows** and **{len(full_df.columns)} columns**."
+            elif "fatal" in lower_prompt or "severe" in lower_prompt:
                 bot_response = "The models typically predict 'Fatal' or 'Severe' when high-risk factors align. For example, driving at extreme speeds, during bad weather, or on a Motorcycle drastically increases the severity score."
             elif "random forest" in lower_prompt or "rf" in lower_prompt:
                 bot_response = "Random Forest is an ensemble learning method that constructs multiple decision trees during training and outputs the most popular class. It's very robust against overfitting!"
@@ -530,7 +552,7 @@ def main():
             elif "dataset" in lower_prompt or "data" in lower_prompt:
                 bot_response = f"Your current dataset is using {len(feature_info)} input features to predict the '{target_col}' column."
             else:
-                bot_response = "That is a great question! Since I am currently running in 'Mock Mode' (without a live API key), my knowledge is limited to basic explanations of our models (Random Forest and SVM) and your dataset structure. Try asking me about those!"
+                bot_response = "🤖 **I am your Custom Data Agent!** Since you haven't provided a Gemini API Key, I am analyzing your dataset locally.\\n\\nTry asking me specific math questions like:\\n- *'What is the average speed limit?'*\\n- *'How many fatal accidents are there?'*\\n- *'How many rows are in the dataset?'*"
             
         # Display assistant response in chat message container
         with st.chat_message("assistant"):
