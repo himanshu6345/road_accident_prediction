@@ -22,3 +22,7 @@ __pycache__/
 # You can uncomment these if you don't want to commit datasets and models
 # *.csv
 # *.pkl
+
+# Runtime files
+app_data.db
+users.json.migrated

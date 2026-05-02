@@ -11,6 +11,18 @@ def generate_mock_data(num_samples=5000, output_file='accident_data.csv'):
     road_types = ['Highway', 'City Street', 'Rural Road']
     time_of_day = ['Morning', 'Afternoon', 'Evening', 'Night']
     vehicle_types = ['Car', 'Truck', 'Motorcycle', 'Bus']
+    haryana_districts = ['Ambala', 'Bhiwani', 'Charkhi Dadri', 'Faridabad', 'Fatehabad', 'Gurugram', 'Hisar', 'Jhajjar', 'Jind', 'Kaithal', 'Karnal', 'Kurukshetra', 'Mahendragarh', 'Nuh', 'Palwal', 'Panchkula', 'Panipat', 'Rewari', 'Rohtak', 'Sirsa', 'Sonipat', 'Yamunanagar']
+    delhi_districts = ['Central Delhi', 'East Delhi', 'New Delhi', 'North Delhi', 'North East Delhi', 'North West Delhi', 'Shahdara', 'South Delhi', 'South East Delhi', 'South West Delhi', 'West Delhi']
+    up_districts = ['Agra', 'Aligarh', 'Prayagraj', 'Ambedkar Nagar', 'Amethi', 'Amroha', 'Auraiya', 'Ayodhya', 'Azamgarh', 'Baghpat', 'Bahraich', 'Ballia', 'Balrampur', 'Banda', 'Barabanki', 'Bareilly', 'Basti', 'Bhadohi', 'Bijnor', 'Budaun', 'Bulandshahr', 'Chandauli', 'Chitrakoot', 'Deoria', 'Etah', 'Etawah', 'Farrukhabad', 'Fatehpur', 'Firozabad', 'Gautam Buddha Nagar', 'Ghaziabad', 'Ghazipur', 'Gonda', 'Gorakhpur', 'Hamirpur', 'Hapur', 'Hardoi', 'Hathras', 'Jalaun', 'Jaunpur', 'Jhansi', 'Kannauj', 'Kanpur Dehat', 'Kanpur Nagar', 'Kasganj', 'Kaushambi', 'Lakhimpur Kheri', 'Kushinagar', 'Lalitpur', 'Lucknow', 'Maharajganj', 'Mahoba', 'Mainpuri', 'Mathura', 'Mau', 'Meerut', 'Mirzapur', 'Moradabad', 'Muzaffarnagar', 'Pilibhit', 'Pratapgarh', 'Raebareli', 'Rampur', 'Saharanpur', 'Sambhal', 'Sant Kabir Nagar', 'Shahjahanpur', 'Shamli', 'Shravasti', 'Siddharthnagar', 'Sitapur', 'Sonbhadra', 'Sultanpur', 'Unnao', 'Varanasi']
+    
+    state_cities = {
+        'Delhi': delhi_districts,
+        'Haryana': haryana_districts,
+        'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Nashik'],
+        'Karnataka': ['Bengaluru', 'Mysuru', 'Mangaluru', 'Hubli'],
+        'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai', 'Salem'],
+        'Uttar Pradesh': up_districts
+    }
     
     data = []
     
@@ -20,6 +32,8 @@ def generate_mock_data(num_samples=5000, output_file='accident_data.csv'):
         road_cond = random.choice(['Normal', 'Wet', 'Potholes', 'Hill Area'])
         time = random.choice(time_of_day)
         vehicle = random.choice(vehicle_types)
+        state = random.choice(list(state_cities.keys()))
+        city = random.choice(state_cities[state])
         
         # Base speed limit depending on road type
         if road == 'Highway':
@@ -64,6 +78,13 @@ def generate_mock_data(num_samples=5000, output_file='accident_data.csv'):
         elif road_cond == 'Potholes' or road_cond == 'Wet':
             severity_score += 1
             
+        if city in ['Mumbai', 'New Delhi', 'Chennai', 'Bengaluru']:
+            severity_score += 2
+        elif city in ['Pune', 'Lucknow', 'Kanpur']:
+            severity_score += 1
+        elif city in ['Mysuru', 'Salem', 'Dwarka']:
+            severity_score -= 1
+            
         # Add very minimal random noise (0 or 1) so models can achieve higher accuracy
         severity_score += random.randint(0, 1)
         
@@ -77,9 +98,9 @@ def generate_mock_data(num_samples=5000, output_file='accident_data.csv'):
         else:
             severity = 'Fatal'
             
-        data.append([weather, road, road_cond, speed_limit, time, vehicle, driver_age, severity])
+        data.append([weather, road, road_cond, speed_limit, time, vehicle, driver_age, state, city, severity])
         
-    df = pd.DataFrame(data, columns=['Weather_Condition', 'Road_Type', 'Road_Condition', 'Speed_Limit', 'Time_of_Day', 'Vehicle_Type', 'Driver_Age', 'Accident_Severity'])
+    df = pd.DataFrame(data, columns=['Weather_Condition', 'Road_Type', 'Road_Condition', 'Speed_Limit', 'Time_of_Day', 'Vehicle_Type', 'Driver_Age', 'State', 'City', 'Accident_Severity'])
     
     # Introduce some missing values to simulate real-world data
     for col in ['Weather_Condition', 'Driver_Age']:

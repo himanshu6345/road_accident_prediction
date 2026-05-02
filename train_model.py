@@ -33,7 +33,7 @@ def main():
 
     # 2. Encode categorical features
     label_encoders = {}
-    features_to_encode = ['Weather_Condition', 'Road_Type', 'Road_Condition', 'Time_of_Day', 'Vehicle_Type']
+    features_to_encode = ['Weather_Condition', 'Road_Type', 'Road_Condition', 'Time_of_Day', 'Vehicle_Type', 'State', 'City']
     
     for col in features_to_encode:
         le = LabelEncoder()

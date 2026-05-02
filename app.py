@@ -4,8 +4,12 @@ import numpy as np
 import joblib
 import os
 import json
-import google.generativeai as genai
 from dotenv import load_dotenv
+import requests
+from datetime import datetime
+import xml.etree.ElementTree as ET
+from urllib.parse import quote_plus
+from streamlit_geolocation import streamlit_geolocation
 
 # Load environment variables
 load_dotenv()
@@ -15,6 +19,113 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.impute import SimpleImputer
 import plotly.express as px
+from database import init_db, add_user, verify_user, reset_password, log_prediction, get_predictions, get_all_users, get_all_predictions
+from notifications import notify_admin_of_new_user, notify_user_of_registration
+from static_assistant import StaticModelAssistant
+
+def fetch_recent_accidents(location_name):
+    try:
+        query = quote_plus(f"road accident {location_name} when:7d")
+        url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+        r = requests.get(url, timeout=5)
+        root = ET.fromstring(r.content)
+        
+        accidents = []
+        for item in root.findall('.//item')[:3]:
+            title = item.find('title').text
+            pub_date = item.find('pubDate').text
+            if " - " in title:
+                title = " - ".join(title.split(" - ")[:-1])
+            accidents.append({"title": title, "date": pub_date})
+            
+        return accidents
+    except Exception as e:
+        return []
+
+def fetch_live_traffic(lat, lon, api_key, time_of_day):
+    if api_key:
+        try:
+            url = f"https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?key={api_key}&point={lat},{lon}"
+            r = requests.get(url, timeout=5).json()
+            if 'flowSegmentData' in r:
+                data = r['flowSegmentData']
+                current_speed = data.get('currentSpeed', 0)
+                free_flow_speed = data.get('freeFlowSpeed', 1)
+                ratio = current_speed / free_flow_speed if free_flow_speed > 0 else 1
+                if ratio < 0.5:
+                    return "Heavy Traffic", current_speed, free_flow_speed
+                elif ratio < 0.8:
+                    return "Moderate Traffic", current_speed, free_flow_speed
+                else:
+                    return "Free Flowing", current_speed, free_flow_speed
+        except Exception:
+            pass
+            
+    if time_of_day in ['Morning', 'Evening']:
+        return "Heavy Traffic (Estimated)", None, None
+    elif time_of_day == 'Afternoon':
+        return "Moderate Traffic (Estimated)", None, None
+    else:
+        return "Free Flowing (Estimated)", None, None
+
+def fetch_live_data(location_name=None, lat=None, lon=None):
+    try:
+        state = 'Delhi'
+        city = 'New Delhi'
+        
+        if lat is None or lon is None:
+            geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={location_name}&count=1&language=en&format=json"
+            geo_resp = requests.get(geocode_url).json()
+            if 'results' not in geo_resp or not geo_resp['results']:
+                return None, "Location not found."
+                
+            lat = geo_resp['results'][0]['latitude']
+            lon = geo_resp['results'][0]['longitude']
+            state = geo_resp['results'][0].get('admin1', 'Delhi')
+            city = geo_resp['results'][0].get('name', 'New Delhi')
+        else:
+            # Try to fetch State and City using the provided location name string
+            search_name = location_name.split(',')[0] if location_name else "New Delhi"
+            geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={search_name}&count=1&language=en&format=json"
+            geo_resp = requests.get(geocode_url).json()
+            if 'results' in geo_resp and geo_resp['results']:
+                state = geo_resp['results'][0].get('admin1', 'Delhi')
+                city = geo_resp['results'][0].get('name', 'New Delhi')
+        
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,weather_code"
+        weather_resp = requests.get(weather_url).json()
+        current = weather_resp.get('current', {})
+        w_code = current.get('weather_code', 0)
+        temp = current.get('temperature_2m', 0)
+        
+        if w_code in [0, 1, 2, 3]: weather = 'Clear'
+        elif w_code in [45, 48]: weather = 'Fog'
+        elif w_code in [71, 73, 75, 77, 85, 86]: weather = 'Snow'
+        else: weather = 'Rain'
+        
+        current_hour = datetime.now().hour
+        if 5 <= current_hour < 12: time_of_day = 'Morning'
+        elif 12 <= current_hour < 17: time_of_day = 'Afternoon'
+        elif 17 <= current_hour < 20: time_of_day = 'Evening'
+        else: time_of_day = 'Night'
+        
+        road_cond = 'Wet' if weather in ['Rain', 'Snow'] else 'Normal'
+        
+        return {
+            'Weather_Condition': weather,
+            'Time_of_Day': time_of_day,
+            'Road_Condition': road_cond,
+            'Temperature': temp,
+            'Lat': lat,
+            'Lon': lon,
+            'State': state,
+            'City': city
+        }, None
+    except Exception as e:
+        return None, str(e)
+
+# Initialize DB
+init_db()
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -36,38 +147,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- USER AUTHENTICATION & DATABASE ---
-USERS_DB = "users.json"
-
-def load_users():
-    if os.path.exists(USERS_DB):
-        with open(USERS_DB, "r") as f:
-            return json.load(f)
-    else:
-        # Default users
-        default_users = {
-            "admin": "admin123",
-            "guest": "guest"
-        }
-        with open(USERS_DB, "w") as f:
-            json.dump(default_users, f)
-        return default_users
-
-def save_user(username, password):
-    users = load_users()
-    users[username] = password
-    with open(USERS_DB, "w") as f:
-        json.dump(users, f)
 
 def check_password():
     """Returns `True` if the user had a correct password."""
-    users = load_users()
 
     def password_entered():
-        if (
-            st.session_state.get("username") in users
-            and st.session_state.get("password") == users[st.session_state["username"]]
-        ):
+        if verify_user(st.session_state.get("username"), st.session_state.get("password")):
             st.session_state["password_correct"] = True
+            st.session_state["logged_in_user"] = st.session_state.get("username")
             if "password" in st.session_state:
                 del st.session_state["password"]  # don't store password
         else:
@@ -90,18 +177,68 @@ def check_password():
                 if "password_correct" in st.session_state and not st.session_state["password_correct"]:
                     st.error("😕 Username or password incorrect")
                     
+                with st.expander("Forgot Password?"):
+                    st.write("Reset your password by verifying your registered email.")
+                    reset_user = st.text_input("Username", key="reset_username")
+                    reset_email = st.text_input("Registered Email Address", key="reset_email")
+                    reset_new_pass = st.text_input("New Password", type="password", key="reset_new_password")
+                    if st.button("Reset Password", use_container_width=True):
+                        if reset_user == "" or reset_email == "" or reset_new_pass == "":
+                            st.error("⚠️ All fields must be filled.")
+                        else:
+                            success, message = reset_password(reset_user, reset_email, reset_new_pass)
+                            if success:
+                                st.success(f"✅ {message}")
+                            else:
+                                st.error(f"⚠️ {message}")
+                                
             with tab2:
-                st.write("Create a new account.")
-                new_user = st.text_input("Choose Username", key="new_username")
-                new_pass = st.text_input("Choose Password", type="password", key="new_password")
-                if st.button("Register Account", use_container_width=True):
-                    if new_user in users:
-                        st.error("⚠️ Username already exists! Choose another.")
-                    elif new_user == "" or new_pass == "":
-                        st.error("⚠️ Username and Password cannot be empty.")
-                    else:
-                        save_user(new_user, new_pass)
-                        st.success("✅ Account created! Please switch to the Sign In tab to log in.")
+                if st.session_state.get('registration_success', False):
+                    st.success(f"✅ Account created successfully!")
+                    st.info(f"**IMPORTANT: Your generated Login ID is:** `{st.session_state.new_login_id}`\n\nPlease switch to the Sign In tab and use this Login ID to sign in.")
+                    if st.button("⬅️ Register Another Account"):
+                        st.session_state.registration_success = False
+                        st.rerun()
+                else:
+                    st.write("Create a new account.")
+                    
+                    with st.form("registration_form"):
+                        first_name = st.text_input("First Name")
+                        last_name = st.text_input("Last Name")
+                        new_email = st.text_input("Email ID")
+                        new_contact = st.text_input("Contact Number")
+                        new_pass = st.text_input("Create Password", type="password")
+                        
+                        submitted = st.form_submit_button("Complete Registration ✅", use_container_width=True)
+                        
+                    if submitted:
+                        if not first_name or not last_name or not new_email or not new_pass:
+                            st.error("⚠️ First Name, Last Name, Email, and Password are required.")
+                        else:
+                            base_username = f"{first_name.strip().lower()}{last_name.strip().lower()}"
+                            import random
+                            new_user = base_username
+                            
+                            # Try to generate a unique username
+                            for _ in range(10):
+                                success, message = add_user(
+                                    username=new_user, 
+                                    password=new_pass, 
+                                    email=new_email,
+                                    full_name=f"{first_name.strip()} {last_name.strip()}",
+                                    contact_number=new_contact
+                                )
+                                if success:
+                                    notify_admin_of_new_user(new_user, new_email)
+                                    notify_user_of_registration(new_email, new_contact, first_name.strip(), new_user)
+                                    
+                                    st.session_state.registration_success = True
+                                    st.session_state.new_login_id = new_user
+                                    st.rerun()
+                                else:
+                                    new_user = f"{base_username}{random.randint(10, 9999)}"
+                            else:
+                                st.error("⚠️ Could not generate a unique username. Please try again.")
         return False
     else:
         # Password correct.
@@ -201,14 +338,16 @@ def load_default_models():
             'Speed_Limit': {'type': 'numerical', 'min': 15.0, 'max': 220.0, 'mean': 45.0},
             'Time_of_Day': {'type': 'categorical', 'options': ['Morning', 'Afternoon', 'Evening', 'Night']},
             'Vehicle_Type': {'type': 'categorical', 'options': ['Car', 'Truck', 'Motorcycle', 'Bus']},
-            'Driver_Age': {'type': 'numerical', 'min': 16.0, 'max': 100.0, 'mean': 35.0}
+            'Driver_Age': {'type': 'numerical', 'min': 16.0, 'max': 100.0, 'mean': 35.0},
+            'State': {'type': 'categorical', 'options': ['Delhi', 'Haryana', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Uttar Pradesh']},
+            'City': {'type': 'categorical', 'options': []}
         }
         
         return {
             'rf': rf_model, 'svm': svm_model, 'scaler': scaler,
             'label_encoders': label_encoders, 'target_encoder': target_encoder,
             'feature_info': feature_info,
-            'cat_cols': ['Weather_Condition', 'Road_Type', 'Road_Condition', 'Time_of_Day', 'Vehicle_Type'],
+            'cat_cols': ['Weather_Condition', 'Road_Type', 'Road_Condition', 'Time_of_Day', 'Vehicle_Type', 'State', 'City'],
             'num_cols': ['Speed_Limit', 'Driver_Age'],
             'target_col': 'Accident_Severity'
         }
@@ -220,30 +359,41 @@ def main():
     # Display normal sized top image centered
     col1, col2, col3 = st.columns([1, 4, 1])
     with col2:
-        st.image("/Users/himanshuprajapati/.gemini/antigravity/brain/b065bf0b-01c9-4753-b07a-fecb377c74d7/top_image_normal_1777292074823.png", use_container_width=True)
+        st.image(os.path.join(os.path.dirname(__file__), 'assets', 'top_banner.png'), use_container_width=True)
     st.markdown("<h1>Dynamic Data Mining Predictor</h1>", unsafe_allow_html=True)
     st.markdown("<div class='subtitle'>Upload any dataset to train and predict instantly!</div>", unsafe_allow_html=True)
 
     # Sidebar for Upload
     st.sidebar.header("🚪 Session")
-    st.sidebar.write(f"Logged in as: **{st.session_state.get('username', 'User')}**")
+    st.sidebar.write(f"Logged in as: **{st.session_state.get('logged_in_user', 'User')}**")
     if st.sidebar.button("Logout"):
         for key in st.session_state.keys():
             del st.session_state[key]
         st.rerun()
         
+    with st.sidebar.expander("📜 View Prediction History"):
+        history = get_predictions(st.session_state.get("logged_in_user"))
+        if history:
+            for h in history:
+                try:
+                    feat_dict = json.loads(h['input_features'])
+                    # Format features cleanly
+                    details = " | ".join([f"{k}: {v}" for k, v in feat_dict.items() if k not in ['State']])
+                except:
+                    details = "No details available."
+                    
+                st.markdown(f"🕒 **{h['timestamp']}**")
+                st.markdown(f"<div style='font-size:0.8em; color:gray; margin-bottom:5px;'>{details}</div>", unsafe_allow_html=True)
+                st.markdown(f"**RF:** {h['rf_prediction']} | **SVM:** {h['svm_prediction']}")
+                st.markdown("---")
+        else:
+            st.write("No predictions yet.")
+        
     st.sidebar.markdown("---")
     st.sidebar.header("⚙️ AI Settings")
     
     # Auto-load key from environment or secrets if available
-    env_key = os.getenv("GEMINI_API_KEY", "")
-    try:
-        secret_key = st.secrets.get("GEMINI_API_KEY", "")
-    except FileNotFoundError:
-        secret_key = ""
-        
-    default_api_key = secret_key or env_key
-    gemini_api_key = st.sidebar.text_input("Gemini API Key", value=default_api_key, type="password", help="Enter your Gemini API key to activate the live AI Chatbot.")
+    tomtom_api_key = st.sidebar.text_input("TomTom Traffic API Key (Optional)", type="password", help="Enter a TomTom API key for true real-time traffic speeds, otherwise the system will use heuristic estimations.")
     
     st.sidebar.markdown("---")
     st.sidebar.header("📁 Upload Custom Dataset")
@@ -286,241 +436,407 @@ def main():
     cat_cols = context['cat_cols']
     num_cols = context['num_cols']
 
-    st.write(f"### 📋 Enter Parameters (Predicting: **{target_col}**)")
+    # Main Navigation Tabs
+    if st.session_state.get('logged_in_user') == 'admin':
+        main_tabs = st.tabs(["🎯 Prediction Engine", "💬 AI Assistant", "🛡️ Admin Dashboard"])
+        tab_pred, tab_chat, tab_admin = main_tabs[0], main_tabs[1], main_tabs[2]
+    else:
+        main_tabs = st.tabs(["🎯 Prediction Engine", "💬 AI Assistant"])
+        tab_pred, tab_chat = main_tabs[0], main_tabs[1]
+        
+    with tab_pred:
+        st.write(f"### 📋 Enter Parameters (Predicting: **{target_col}**)")
     
-    # Dynamic UI Generation
-    user_inputs = {}
+        tab_manual, tab_live = st.tabs(["📝 Manual Prediction", "📡 Real-Time Live Prediction"])
+        
+        predict_clicked = False
+        active_user_inputs = {}
+        active_live_loc = ""
+        
+        with tab_manual:
+            # Dynamic UI Generation
+            user_inputs = {}
+        
+            haryana_districts = ['Ambala', 'Bhiwani', 'Charkhi Dadri', 'Faridabad', 'Fatehabad', 'Gurugram', 'Hisar', 'Jhajjar', 'Jind', 'Kaithal', 'Karnal', 'Kurukshetra', 'Mahendragarh', 'Nuh', 'Palwal', 'Panchkula', 'Panipat', 'Rewari', 'Rohtak', 'Sirsa', 'Sonipat', 'Yamunanagar']
+            delhi_districts = ['Central Delhi', 'East Delhi', 'New Delhi', 'North Delhi', 'North East Delhi', 'North West Delhi', 'Shahdara', 'South Delhi', 'South East Delhi', 'South West Delhi', 'West Delhi']
+            up_districts = ['Agra', 'Aligarh', 'Prayagraj', 'Ambedkar Nagar', 'Amethi', 'Amroha', 'Auraiya', 'Ayodhya', 'Azamgarh', 'Baghpat', 'Bahraich', 'Ballia', 'Balrampur', 'Banda', 'Barabanki', 'Bareilly', 'Basti', 'Bhadohi', 'Bijnor', 'Budaun', 'Bulandshahr', 'Chandauli', 'Chitrakoot', 'Deoria', 'Etah', 'Etawah', 'Farrukhabad', 'Fatehpur', 'Firozabad', 'Gautam Buddha Nagar', 'Ghaziabad', 'Ghazipur', 'Gonda', 'Gorakhpur', 'Hamirpur', 'Hapur', 'Hardoi', 'Hathras', 'Jalaun', 'Jaunpur', 'Jhansi', 'Kannauj', 'Kanpur Dehat', 'Kanpur Nagar', 'Kasganj', 'Kaushambi', 'Lakhimpur Kheri', 'Kushinagar', 'Lalitpur', 'Lucknow', 'Maharajganj', 'Mahoba', 'Mainpuri', 'Mathura', 'Mau', 'Meerut', 'Mirzapur', 'Moradabad', 'Muzaffarnagar', 'Pilibhit', 'Pratapgarh', 'Raebareli', 'Rampur', 'Saharanpur', 'Sambhal', 'Sant Kabir Nagar', 'Shahjahanpur', 'Shamli', 'Shravasti', 'Siddharthnagar', 'Sitapur', 'Sonbhadra', 'Sultanpur', 'Unnao', 'Varanasi']
+        
+            state_cities_map = {
+                'Delhi': delhi_districts,
+                'Haryana': haryana_districts,
+                'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Nashik'],
+                'Karnataka': ['Bengaluru', 'Mysuru', 'Mangaluru', 'Hubli'],
+                'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai', 'Salem'],
+                'Uttar Pradesh': up_districts
+            }
+        
+            # We create a 2-column layout
+            cols = st.columns(2)
+            for i, (feature_name, info) in enumerate(feature_info.items()):
+                col = cols[i % 2]
+                with col:
+                    if feature_name == 'State':
+                        user_inputs['State'] = st.selectbox('State', list(state_cities_map.keys()))
+                    elif feature_name == 'City':
+                        selected_state = user_inputs.get('State', 'Delhi')
+                        user_inputs['City'] = st.selectbox('City', state_cities_map.get(selected_state, []))
+                    elif info['type'] == 'categorical':
+                        user_inputs[feature_name] = st.selectbox(feature_name, info['options'])
+                    else:
+                        user_inputs[feature_name] = st.number_input(
+                            feature_name, 
+                            min_value=info['min'], 
+                            max_value=info['max'], 
+                            value=info['mean'],
+                            step=float((info['max'] - info['min']) / 20) if info['max'] != info['min'] else 1.0
+                        )
     
-    # We create a 2-column layout
-    cols = st.columns(2)
-    for i, (feature_name, info) in enumerate(feature_info.items()):
-        col = cols[i % 2]
-        with col:
-            if info['type'] == 'categorical':
-                user_inputs[feature_name] = st.selectbox(feature_name, info['options'])
-            else:
-                user_inputs[feature_name] = st.number_input(
-                    feature_name, 
-                    min_value=info['min'], 
-                    max_value=info['max'], 
-                    value=info['mean'],
-                    step=float((info['max'] - info['min']) / 20) if info['max'] != info['min'] else 1.0
-                )
-
-    # Prediction Logic
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("Predict Outcome 🎯", use_container_width=True):
-        with st.spinner('Analyzing...'):
-            input_df = pd.DataFrame([user_inputs])
-            
-            # Encode categorical
-            for c in cat_cols:
-                le = label_encoders[c]
-                # Fallback for unseen data
-                if input_df[c][0] not in le.classes_:
-                    input_df[c] = le.transform([le.classes_[0]])
-                else:
-                    input_df[c] = le.transform(input_df[c])
-                    
-            # Scale
-            # Ensure column order matches training
-            input_ordered = input_df[cat_cols + num_cols] if 'training' in st.session_state else input_df[list(feature_info.keys())]
-            
             try:
-                 input_scaled = scaler.transform(input_ordered)
-            except ValueError:
-                 # fallback order
-                 input_scaled = scaler.transform(input_df)
+                full_df = pd.read_csv(os.path.join(os.path.dirname(__file__), 'accident_data.csv'))
+            except Exception:
+                full_df = pd.DataFrame()
+    
+            if 'City' in user_inputs and not full_df.empty:
+                st.write("---")
+                st.write(f"### 📊 Local Analytics: {user_inputs['City']}, {user_inputs['State']}")
+                city_df = full_df[full_df['City'] == user_inputs['City']]
+                if not city_df.empty:
+                    severe_fatal = city_df[city_df['Accident_Severity'].isin(['Severe', 'Fatal'])]
+                    max_rate = len(severe_fatal) / len(city_df) * 100
+                
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        st.metric("Max Street/Road Accident Rate (Severe/Fatal)", f"{max_rate:.1f}%", f"Total Records: {len(city_df)}")
+                    with col2:
+                        road_counts = severe_fatal['Road_Type'].value_counts().reset_index()
+                        road_counts.columns = ['Road Type', 'Severe Accidents']
+                        if not road_counts.empty:
+                            fig = px.bar(road_counts, x='Road Type', y='Severe Accidents', color='Road Type', title=f"High Severity Accidents by Road Type in {user_inputs['City']}", height=300)
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.info("No severe accidents recorded for this city yet.")
+    
+            # Prediction Logic
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Predict Outcome 🎯", key="btn_manual", use_container_width=True):
+                predict_clicked = True
+                active_user_inputs = user_inputs
+                active_live_loc = ""
 
-            # Predict
-            rf_pred_enc = rf_model.predict(input_scaled)[0]
-            rf_label = target_encoder.inverse_transform([rf_pred_enc])[0]
-            
-            svm_pred_enc = svm_model.predict(input_scaled)[0]
-            svm_label = target_encoder.inverse_transform([svm_pred_enc])[0]
+        if 'auto_loc' not in st.session_state:
+            st.session_state['auto_loc'] = ""
 
-            st.markdown(f"""
-            <div class='prediction-card'>
-                <h3 style='color: #34495e;'>Algorithm Predictions</h3>
-                <p><b>Random Forest:</b> <span class='pred-value'>{rf_label}</span></p>
-                <p><b>Support Vector Machine:</b> <span class='pred-value'>{svm_label}</span></p>
-            </div>
-            """, unsafe_allow_html=True)
+        with tab_live:
+            st.write("### 📡 Auto-Fetch Live Conditions")
+            st.write("Enter your location and vehicle details to fetch live weather, time context, traffic, and accident alerts automatically.")
+        
+            col_btn, col_text = st.columns([1, 2])
+            with col_btn:
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                gps_loc = streamlit_geolocation()
             
-            # --- SITUATIONAL ANALYSIS ---
-            st.write("### 🔍 Situational Analysis")
+                if gps_loc and gps_loc.get('latitude') is not None and gps_loc.get('latitude') != st.session_state.get('last_lat'):
+                    try:
+                        lat = gps_loc['latitude']
+                        lon = gps_loc['longitude']
+                        st.session_state['last_lat'] = lat
+                    
+                        # Reverse geocode with Nominatim to get exact address
+                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                        rev = requests.get(f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=jsonv2", headers=headers, timeout=5).json()
+                    
+                        loc_str = rev.get('display_name') or "Unknown Location"
+                        st.session_state['auto_loc'] = loc_str
+                        st.session_state['live_loc_input'] = loc_str # Force widget update
+                        st.session_state['auto_trigger_live'] = True
+                        # Pass the exact coordinates forward to bypass geocoding issues with long names
+                        st.session_state['detected_lat'] = lat
+                        st.session_state['detected_lon'] = lon
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Could not reverse geocode: {e}")
+                    
+            with col_text:
+                live_loc_input = st.text_input("Enter Live City/Area (e.g. Pune)", value=st.session_state['auto_loc'], key='live_loc_input')
+        
+            l_cols = st.columns(3)
+            with l_cols[0]:
+                live_vehicle = st.selectbox("Vehicle Type", feature_info['Vehicle_Type']['options'], key='live_veh')
+            with l_cols[1]:
+                live_age = st.number_input("Driver Age", min_value=16.0, max_value=100.0, value=35.0, key='live_age')
+            with l_cols[2]:
+                live_speed = st.number_input("Your Vehicle Speed (km/h)", min_value=15.0, max_value=220.0, value=60.0, key='live_speed')
             
-            recommendations = []
-            if 'Weather_Condition' in user_inputs and user_inputs['Weather_Condition'] in ['Snow', 'Fog', 'Rain']:
-                recommendations.append(f"Visibility and traction are reduced due to {user_inputs['Weather_Condition']}.")
-            if 'Speed_Limit' in user_inputs and user_inputs['Speed_Limit'] >= 80:
-                recommendations.append(f"High speeds ({user_inputs['Speed_Limit']}) significantly increase accident severity.")
-            if 'Time_of_Day' in user_inputs and user_inputs['Time_of_Day'] == 'Night':
-                recommendations.append("Nighttime driving reduces visibility.")
-            if 'Vehicle_Type' in user_inputs and user_inputs['Vehicle_Type'] == 'Motorcycle':
-                recommendations.append("Motorcycles offer less protection in collisions.")
-            if 'Road_Condition' in user_inputs and user_inputs['Road_Condition'] in ['Hill Area', 'Potholes']:
-                recommendations.append(f"Road condition ({user_inputs['Road_Condition']}) introduces severe handling risks.")
-
-            # Generic risk check (works for default target classes and common binary classes)
-            high_risk_labels = ['Severe', 'Fatal', 'High', 'Yes', 1, '1', 'True', True]
-            is_high_risk = (rf_label in high_risk_labels) or (svm_label in high_risk_labels)
-            
-            if is_high_risk:
-                st.error("🚨 **RISK ALERT: HIGH SEVERITY PREDICTED!**")
-                if recommendations:
-                    st.write("The current combination of conditions correlates with high-risk accidents. Factors noted:")
-                    for rec in recommendations:
-                        st.write(f"- ⚠️ {rec}")
-            else:
-                st.success("✅ **DRIVE SAFE: CONDITIONS ARE FAVORABLE!**")
-                if recommendations:
-                    st.write("Conditions are generally safe, but please exercise standard caution. Factors noted:")
-                    for rec in recommendations:
-                        st.write(f"- Note: {rec}")
+            btn_pressed = st.button("Fetch Live Data & Predict 🚀", key="btn_live", use_container_width=True)
+            if btn_pressed or st.session_state.get('auto_trigger_live', False):
+                st.session_state['auto_trigger_live'] = False # Reset immediately
+                if not live_loc_input:
+                    st.error("Please enter a location.")
                 else:
-                    st.write("- No extreme risk factors detected.")
+                    with st.spinner("Fetching live satellite and traffic data..."):
+                        # If we auto-detected, use the stored exact coordinates to bypass geocoding
+                        use_lat = st.session_state.get('detected_lat') if live_loc_input == st.session_state.get('auto_loc') else None
+                        use_lon = st.session_state.get('detected_lon') if live_loc_input == st.session_state.get('auto_loc') else None
+                    
+                        live_data, err = fetch_live_data(live_loc_input, use_lat, use_lon)
+                        if not err:
+                            # Fetch Traffic and Accidents
+                            traffic_status, curr_speed, free_speed = fetch_live_traffic(live_data['Lat'], live_data['Lon'], tomtom_api_key, live_data['Time_of_Day'])
+                        
+                            # Extract short city name (before first comma) for the news query
+                            short_city = live_loc_input.split(',')[0]
+                            accidents = fetch_recent_accidents(short_city)
+                    
+                    if err:
+                        st.error(f"Error fetching data: {err}")
+                    else:
+                        st.success(f"✅ Data fetched! Current Weather: {live_data['Weather_Condition']} ({live_data['Temperature']}°C) | Time: {live_data['Time_of_Day']}")
+                    
+                        st.write("#### 🗺️ Live Location Map")
+                        map_df = pd.DataFrame({'lat': [live_data['Lat']], 'lon': [live_data['Lon']]})
+                        st.map(map_df, zoom=13)
+                    
+                        col_t, col_a = st.columns(2)
+                        with col_t:
+                            st.write("#### 🚦 Live Traffic Condition")
+                            if curr_speed:
+                                st.write(f"**{traffic_status}** ({curr_speed} km/h on a {free_speed} km/h road)")
+                            else:
+                                st.write(f"**{traffic_status}**")
+                            
+                        with col_a:
+                            st.write("#### 📰 Recent Local Alerts")
+                            if accidents:
+                                for acc in accidents:
+                                    st.write(f"- 🚨 {acc['title']}")
+                            else:
+                                st.write("✅ No recent accidents reported in the news for this area in the last 7 days.")
+                            
+                        # Pass the traffic info to active_live_loc so the Situational Analysis can pick it up
+                        active_live_loc = f"{live_loc_input} | Traffic: {traffic_status}"
+                    
+                        # Use driver's inputted speed for ML inference to predict THEIR specific accident risk
+                        final_speed = live_speed
+                        final_road = 'Highway' if (free_speed and free_speed >= 65) else 'City Street'
+
+                        active_user_inputs = {
+                            'Weather_Condition': live_data['Weather_Condition'],
+                            'Road_Type': final_road,
+                            'Road_Condition': live_data['Road_Condition'],
+                            'Speed_Limit': final_speed,
+                            'Time_of_Day': live_data['Time_of_Day'],
+                            'Vehicle_Type': live_vehicle,
+                            'Driver_Age': live_age,
+                            'State': live_data['State'],
+                            'City': live_data['City']
+                        }
+                        predict_clicked = True
+
+        if predict_clicked:
+            user_inputs = active_user_inputs
+            live_location = active_live_loc
+            with st.spinner('Analyzing...'):
+                input_df = pd.DataFrame([user_inputs])
             
-            # --- OUTCOME PROBABILITIES ---
-            st.write("---")
-            st.write("### 📊 Specific Outcome Risks")
+                # Encode categorical
+                for c in cat_cols:
+                    le = label_encoders[c]
+                    # Fallback for unseen data
+                    if input_df[c][0] not in le.classes_:
+                        fallback_val = 'Maharashtra' if c == 'State' else ('Mumbai' if c == 'City' else le.classes_[0])
+                        if fallback_val not in le.classes_: 
+                            fallback_val = le.classes_[0]
+                        input_df[c] = le.transform([fallback_val])
+                        st.warning(f"⚠️ **Note**: {c.replace('_', ' ')} '{user_inputs[c]}' is unseen in historical training data. The model is estimating risk based on baseline '{fallback_val}'.")
+                    else:
+                        input_df[c] = le.transform(input_df[c])
+                    
+                # Scale
+                # Ensure column order matches training
+                input_ordered = input_df[cat_cols + num_cols] if 'training' in st.session_state else input_df[list(feature_info.keys())]
             
-            # Use RF probabilities to calculate specific risks
-            rf_probs = rf_model.predict_proba(input_scaled)[0]
-            classes = list(target_encoder.classes_)
+                try:
+                     input_scaled = scaler.transform(input_ordered)
+                except ValueError:
+                     # fallback order
+                     input_scaled = scaler.transform(input_df)
+
+                # Predict
+                rf_pred_enc = rf_model.predict(input_scaled)[0]
+                rf_label = target_encoder.inverse_transform([rf_pred_enc])[0]
             
-            p_fatal = rf_probs[classes.index('Fatal')] if 'Fatal' in classes else 0
-            p_severe = rf_probs[classes.index('Severe')] if 'Severe' in classes else 0
-            p_moderate = rf_probs[classes.index('Moderate')] if 'Moderate' in classes else 0
-            p_minor = rf_probs[classes.index('Minor')] if 'Minor' in classes else 0
+                svm_pred_enc = svm_model.predict(input_scaled)[0]
+                svm_label = target_encoder.inverse_transform([svm_pred_enc])[0]
+
+                # Log prediction to DB
+                log_prediction(st.session_state.get('logged_in_user'), user_inputs, str(rf_label), str(svm_label))
+
+                st.markdown(f"""
+                <div class='prediction-card'>
+                    <h3 style='color: #34495e;'>Algorithm Predictions</h3>
+                    <p><b>Random Forest:</b> <span class='pred-value'>{rf_label}</span></p>
+                    <p><b>Support Vector Machine:</b> <span class='pred-value'>{svm_label}</span></p>
+                </div>
+                """, unsafe_allow_html=True)
             
-            # Calculate independent chances (out of 100%)
-            chance_death = p_fatal * 100
-            chance_injury = min((p_severe + (0.7 * p_moderate)) * 100, 100.0)
-            chance_damage = min((p_minor + p_moderate + (0.5 * p_severe)) * 100, 100.0)
+                # --- SITUATIONAL ANALYSIS ---
+                st.write("### 🔍 Situational Analysis")
             
-            # Create 3 columns for individual metric visualiztion
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.markdown(f"<h4 style='text-align: center; color: #c0392b;'>💀 Chances of Death</h4>", unsafe_allow_html=True)
-                st.progress(int(chance_death))
-                st.markdown(f"<h2 style='text-align: center;'>{chance_death:.1f}%</h2>", unsafe_allow_html=True)
+                recommendations = []
+                if 'Weather_Condition' in user_inputs and user_inputs['Weather_Condition'] in ['Snow', 'Fog', 'Rain']:
+                    recommendations.append(f"Visibility and traction are reduced due to {user_inputs['Weather_Condition']}.")
+                if 'Speed_Limit' in user_inputs and user_inputs['Speed_Limit'] >= 80:
+                    recommendations.append(f"High speeds ({user_inputs['Speed_Limit']}) significantly increase accident severity.")
+                if 'Time_of_Day' in user_inputs and user_inputs['Time_of_Day'] == 'Night':
+                    recommendations.append("Nighttime driving reduces visibility.")
+                if 'Vehicle_Type' in user_inputs and user_inputs['Vehicle_Type'] == 'Motorcycle':
+                    recommendations.append("Motorcycles offer less protection in collisions.")
+                if 'Road_Condition' in user_inputs and user_inputs['Road_Condition'] in ['Hill Area', 'Potholes']:
+                    recommendations.append(f"Road condition ({user_inputs['Road_Condition']}) introduces severe handling risks.")
+                if 'City' in user_inputs and user_inputs['City'] in ['Mumbai', 'New Delhi', 'Chennai', 'Bengaluru']:
+                    recommendations.append(f"High traffic density in {user_inputs['City']} drastically increases the chance of severe accidents.")
                 
+                if live_location:
+                    live_loc_lower = live_location.lower()
+                    if any(kw in live_loc_lower for kw in ['expressway', 'highway', 'bypass']):
+                        recommendations.append(f"🚨 High-speed risk detected on custom location: '{live_location.split(' | ')[0]}'. Expect severe handling dynamics.")
+                    elif any(kw in live_loc_lower for kw in ['chowk', 'market', 'street']):
+                        recommendations.append(f"🚨 High traffic density detected on custom location: '{live_location.split(' | ')[0]}'. Watch out for pedestrian collisions.")
+                
+                    if 'heavy traffic' in live_loc_lower:
+                        recommendations.append("🚗 Live Traffic Alert: Heavy traffic detected. Risk of rear-end collisions is significantly increased.")
+
+                # Generic risk check (works for default target classes and common binary classes)
+                high_risk_labels = ['Severe', 'Fatal', 'High', 'Yes', 1, '1', 'True', True]
+                is_high_risk = (rf_label in high_risk_labels) or (svm_label in high_risk_labels)
+            
+                if is_high_risk:
+                    st.error("🚨 **RISK ALERT: HIGH SEVERITY PREDICTED!**")
+                    if recommendations:
+                        st.write("The current combination of conditions correlates with high-risk accidents. Factors noted:")
+                        for rec in recommendations:
+                            st.write(f"- ⚠️ {rec}")
+                else:
+                    st.success("✅ **DRIVE SAFE: CONDITIONS ARE FAVORABLE!**")
+                    if recommendations:
+                        st.write("Conditions are generally safe, but please exercise standard caution. Factors noted:")
+                        for rec in recommendations:
+                            st.write(f"- Note: {rec}")
+                    else:
+                        st.write("- No extreme risk factors detected.")
+            
+                # --- OUTCOME PROBABILITIES ---
+                st.write("---")
+                st.write("### 📊 Specific Outcome Risks")
+            
+                # Use RF probabilities to calculate specific risks
+                rf_probs = rf_model.predict_proba(input_scaled)[0]
+                classes = list(target_encoder.classes_)
+            
+                p_fatal = rf_probs[classes.index('Fatal')] if 'Fatal' in classes else 0
+                p_severe = rf_probs[classes.index('Severe')] if 'Severe' in classes else 0
+                p_moderate = rf_probs[classes.index('Moderate')] if 'Moderate' in classes else 0
+                p_minor = rf_probs[classes.index('Minor')] if 'Minor' in classes else 0
+            
+                # Calculate independent chances (out of 100%)
+                chance_death = p_fatal * 100
+                chance_injury = min((p_severe + (0.7 * p_moderate)) * 100, 100.0)
+                chance_damage = min((p_minor + p_moderate + (0.5 * p_severe)) * 100, 100.0)
+            
+                # Create 3 columns for individual metric visualiztion
+                col1, col2, col3 = st.columns(3)
+            
+                with col1:
+                    st.markdown(f"<h4 style='text-align: center; color: #c0392b;'>💀 Chances of Death</h4>", unsafe_allow_html=True)
+                    st.progress(int(chance_death))
+                    st.markdown(f"<h2 style='text-align: center;'>{chance_death:.1f}%</h2>", unsafe_allow_html=True)
+                
+                with col2:
+                    st.markdown(f"<h4 style='text-align: center; color: #e67e22;'>🚑 Chances of Injuries</h4>", unsafe_allow_html=True)
+                    st.progress(int(chance_injury))
+                    st.markdown(f"<h2 style='text-align: center;'>{chance_injury:.1f}%</h2>", unsafe_allow_html=True)
+                
+                with col3:
+                    st.markdown(f"<h4 style='text-align: center; color: #f1c40f;'>💥 Property Damages</h4>", unsafe_allow_html=True)
+                    st.progress(int(chance_damage))
+                    st.markdown(f"<h2 style='text-align: center;'>{chance_damage:.1f}%</h2>", unsafe_allow_html=True)
+                
+                # Keep the original full probability graph as an expander for nerds
+                with st.expander("View Full Severity Probability Breakdown"):
+                    prob_df = pd.DataFrame({
+                        'Severity Level': classes,
+                        'Probability (%)': np.round(rf_probs * 100, 2)
+                    })
+                    prob_df.set_index('Severity Level', inplace=True)
+                    st.bar_chart(prob_df, height=250)
+
+
+
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            col1, col2, col3 = st.columns([1, 4, 1])
             with col2:
-                st.markdown(f"<h4 style='text-align: center; color: #e67e22;'>🚑 Chances of Injuries</h4>", unsafe_allow_html=True)
-                st.progress(int(chance_injury))
-                st.markdown(f"<h2 style='text-align: center;'>{chance_injury:.1f}%</h2>", unsafe_allow_html=True)
+                st.image(os.path.join(os.path.dirname(__file__), 'assets', 'bottom_banner.png'), use_container_width=True)
+
+    # --- ADMIN DASHBOARD ---
+    if st.session_state.get('logged_in_user') == 'admin':
+        with tab_admin:
+            st.markdown("---")
+            st.header("🛡️ Admin Dashboard")
+            st.write("Welcome, Admin. Here are the users registered in the system:")
+            users = get_all_users()
+            if users:
+                df_users = pd.DataFrame(users)
+                st.dataframe(df_users, use_container_width=True)
+            else:
+                st.info("No users found.")
                 
-            with col3:
-                st.markdown(f"<h4 style='text-align: center; color: #f1c40f;'>💥 Property Damages</h4>", unsafe_allow_html=True)
-                st.progress(int(chance_damage))
-                st.markdown(f"<h2 style='text-align: center;'>{chance_damage:.1f}%</h2>", unsafe_allow_html=True)
-                
-            # Keep the original full probability graph as an expander for nerds
-            with st.expander("View Full Severity Probability Breakdown"):
-                prob_df = pd.DataFrame({
-                    'Severity Level': classes,
-                    'Probability (%)': np.round(rf_probs * 100, 2)
-                })
-                prob_df.set_index('Severity Level', inplace=True)
-                st.bar_chart(prob_df, height=250)
-
-
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 4, 1])
-    with col2:
-        st.image("/Users/himanshuprajapati/.gemini/antigravity/brain/b065bf0b-01c9-4753-b07a-fecb377c74d7/bottom_image_normal_1777292095383.png", use_container_width=True)
+            st.write("### System Prediction History")
+        all_preds = get_all_predictions()
+        if all_preds:
+            df_preds = pd.DataFrame(all_preds)
+            st.dataframe(df_preds, use_container_width=True)
+        else:
+            st.info("No predictions found in the system.")
 
     # --- AI CHATBOT INTERFACE ---
-    st.markdown("---")
-    st.header("💬 AI Data Assistant")
+    with tab_chat:
+        st.markdown("---")
+        st.header("💬 AI Data Assistant")
+        
+        # Initialize chat history
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+            st.session_state.messages.append({"role": "assistant", "content": "Hello! I am your AI Data Assistant. I can help explain the Random Forest and SVM predictions, or answer questions about your data. How can I help you today?"})
     
-    # Initialize chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I am your AI Data Assistant. I can help explain the Random Forest and SVM predictions, or answer questions about your data. How can I help you today?"})
-
-    # Configure Gemini if key is provided
-    model = None
-    if gemini_api_key:
-        try:
-            genai.configure(api_key=gemini_api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-        except Exception as e:
-            st.error(f"Error configuring Gemini API: {e}")
-    else:
-        st.info("💡 **Tip**: Enter your Gemini API Key in the sidebar to activate the live AI Chatbot! Running in offline mock mode for now.")
-
-    # Display chat messages from history on app rerun
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # React to user input
-    if prompt := st.chat_input("Ask a question..."):
-        # Display user message in chat message container
-        st.chat_message("user").markdown(prompt)
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+    
+        # React to user input
+        if prompt := st.chat_input("Ask a question..."):
+            # Display user message in chat message container
+            st.chat_message("user").markdown(prompt)
+            # Add user message to chat history
+            st.session_state.messages.append({"role": "user", "content": prompt})
 
         # --- AI RESPONSE GENERATOR ---
-        if model:
-            # LIVE GEMINI RESPONSE
+        # OWN CUSTOM LOCAL DATA AGENT (STATIC NLP ASSISTANT)
+        if prompt:
+            if "static_assistant" not in st.session_state:
+                st.session_state.static_assistant = StaticModelAssistant()
+                
             try:
-                with st.spinner("Thinking..."):
-                    # Build context prompt
-                    system_context = f"You are a helpful AI Data Science assistant embedded in a Road Accident Prediction Streamlit app. The user is currently predicting the column '{target_col}'. The input features and their metadata are: {feature_info}. Keep your answers concise, formatted in markdown, and directly relevant to their dataset and Random Forest/SVM models."
-                    
-                    history_str = "\\n".join([f"{msg['role'].capitalize()}: {msg['content']}" for msg in st.session_state.messages])
-                    full_prompt = f"{system_context}\\n\\nHere is the conversation history:\\n{history_str}\\n\\nPlease respond to the user's latest query."
-                    
-                    response = model.generate_content(full_prompt)
-                    bot_response = response.text
-            except Exception as e:
-                bot_response = f"Failed to generate response: {e}"
-        else:
-            # OWN CUSTOM LOCAL DATA AGENT
-            lower_prompt = prompt.lower()
+                full_df = pd.read_csv(os.path.join(os.path.dirname(__file__), 'accident_data.csv'))
+            except Exception:
+                full_df = pd.DataFrame()
+                
+            bot_response = st.session_state.static_assistant.get_response(prompt, full_df)
             
-            # Simple Math & Data Queries
-            if "speed limit" in lower_prompt and "average" in lower_prompt:
-                if 'Speed_Limit' in full_df.columns:
-                    bot_response = f"📊 The average speed limit across the entire dataset is **{full_df['Speed_Limit'].mean():.2f} mph**."
-                else: bot_response = "I couldn't find the 'Speed_Limit' column in your dataset."
-            elif "speed limit" in lower_prompt and ("highest" in lower_prompt or "max" in lower_prompt):
-                if 'Speed_Limit' in full_df.columns:
-                    bot_response = f"📊 The highest speed limit recorded in the dataset is **{full_df['Speed_Limit'].max()} mph**."
-                else: bot_response = "I couldn't find the 'Speed_Limit' column in your dataset."
-            elif "fatal" in lower_prompt and ("how many" in lower_prompt or "count" in lower_prompt):
-                if 'Accident_Severity' in full_df.columns:
-                    count = len(full_df[full_df['Accident_Severity'] == 'Fatal'])
-                    bot_response = f"⚠️ There are exactly **{count}** fatal accidents recorded in your dataset."
-                else: bot_response = "I couldn't find the 'Accident_Severity' column to count fatalities."
-            elif "rain" in lower_prompt and ("how many" in lower_prompt or "count" in lower_prompt):
-                if 'Weather_Conditions' in full_df.columns:
-                    count = len(full_df[full_df['Weather_Conditions'] == 'Raining'])
-                    bot_response = f"🌧️ There are **{count}** accidents that occurred during rainy weather conditions."
-                else: bot_response = "I couldn't find the 'Weather_Conditions' column."
-            elif "row" in lower_prompt or "size" in lower_prompt or "how big" in lower_prompt:
-                bot_response = f"📈 Your dataset currently contains **{len(full_df)} rows** and **{len(full_df.columns)} columns**."
-            elif "fatal" in lower_prompt or "severe" in lower_prompt:
-                bot_response = "The models typically predict 'Fatal' or 'Severe' when high-risk factors align. For example, driving at extreme speeds, during bad weather, or on a Motorcycle drastically increases the severity score."
-            elif "random forest" in lower_prompt or "rf" in lower_prompt:
-                bot_response = "Random Forest is an ensemble learning method that constructs multiple decision trees during training and outputs the most popular class. It's very robust against overfitting!"
-            elif "svm" in lower_prompt or "support vector" in lower_prompt:
-                bot_response = "Support Vector Machine (SVM) finds the optimal boundary that separates our different severity classes. We are using an 'RBF' kernel to handle complex, non-linear relationships in the dataset."
-            elif "dataset" in lower_prompt or "data" in lower_prompt:
-                bot_response = f"Your current dataset is using {len(feature_info)} input features to predict the '{target_col}' column."
-            else:
-                bot_response = "🤖 **I am your Custom Data Agent!** Since you haven't provided a Gemini API Key, I am analyzing your dataset locally.\\n\\nTry asking me specific math questions like:\\n- *'What is the average speed limit?'*\\n- *'How many fatal accidents are there?'*\\n- *'How many rows are in the dataset?'*"
-            
-        # Display assistant response in chat message container
-        with st.chat_message("assistant"):
-            st.markdown(bot_response)
-        # Add assistant response to chat history
-        st.session_state.messages.append({"role": "assistant", "content": bot_response})
+            # Display assistant response in chat message container
+            with st.chat_message("assistant"):
+                st.markdown(bot_response)
+            # Add assistant response to chat history
+            st.session_state.messages.append({"role": "assistant", "content": bot_response})
 
 if __name__ == "__main__":
     if check_password():
