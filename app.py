@@ -790,7 +790,14 @@ def main():
         with tab_admin:
             st.markdown("---")
             st.header("🛡️ Admin Dashboard")
-            st.write("Welcome, Admin. Here are the users registered in the system:")
+            
+            col_admin1, col_admin2 = st.columns([3, 1])
+            with col_admin1:
+                st.write("Welcome, Admin. Here are the users registered in the system:")
+            with col_admin2:
+                if st.button("🔄 Refresh Data"):
+                    st.rerun()
+                    
             users = get_all_users()
             if users:
                 df_users = pd.DataFrame(users)
@@ -799,12 +806,12 @@ def main():
                 st.info("No users found.")
                 
             st.write("### System Prediction History")
-        all_preds = get_all_predictions()
-        if all_preds:
-            df_preds = pd.DataFrame(all_preds)
-            st.dataframe(df_preds, use_container_width=True)
-        else:
-            st.info("No predictions found in the system.")
+            all_preds = get_all_predictions()
+            if all_preds:
+                df_preds = pd.DataFrame(all_preds)
+                st.dataframe(df_preds, use_container_width=True)
+            else:
+                st.info("No predictions found in the system.")
 
     # --- AI CHATBOT INTERFACE ---
     with tab_chat:
