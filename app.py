@@ -769,26 +769,30 @@ def main():
                         lon = gps_loc['longitude']
                         st.session_state['last_lat'] = lat
                     
-                        # Reverse geocode with Nominatim to get exact address
-                        # Using a custom User-Agent to comply with Nominatim's policy
-                        headers = {'User-Agent': 'RoadAccidentPredictionApp/1.0 (himanshuprajapati@example.com)'}
-                        response = requests.get(
-                            f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=jsonv2", 
-                            headers=headers, 
-                            timeout=5
-                        )
-                        
-                        if response.status_code == 200:
+                        # Reverse geocode with BigDataCloud (More reliable than Nominatim on Cloud)
+                        try:
+                            bdc_url = f"https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={lat}&longitude={lon}&localityLanguage=en"
+                            bdc_resp = requests.get(bdc_url, timeout=5).json()
+                            
+                            address = bdc_resp.get('principalSubdivision', '')
+                            locality = bdc_resp.get('locality', '')
+                            city = bdc_resp.get('city', '')
+                            
+                            # Build a pretty name
+                            name_parts = [p for p in [locality, city, address] if p]
+                            loc_str = ", ".join(name_parts) if name_parts else f"Lat: {lat:.4f}, Lon: {lon:.4f}"
+                        except Exception:
+                            # Fallback to Nominatim if BigDataCloud fails
                             try:
+                                headers = {'User-Agent': 'RoadAccidentPredictionApp/1.0'}
+                                response = requests.get(f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=jsonv2", headers=headers, timeout=5)
                                 rev = response.json()
-                                loc_str = rev.get('display_name') or "Unknown Location"
+                                loc_str = rev.get('display_name', f"Lat: {lat:.4f}, Lon: {lon:.4f}")
                             except Exception:
                                 loc_str = f"Lat: {lat:.4f}, Lon: {lon:.4f}"
-                        else:
-                            loc_str = f"Lat: {lat:.4f}, Lon: {lon:.4f}"
                         
                         st.session_state['auto_loc'] = loc_str
-                        st.session_state['live_loc_input'] = loc_str # Force widget update
+                        st.session_state['live_loc_input'] = loc_str 
                         st.session_state['auto_trigger_live'] = True
                         st.session_state['detected_lat'] = lat
                         st.session_state['detected_lon'] = lon
