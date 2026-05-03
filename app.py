@@ -311,14 +311,16 @@ def check_password():
                 to {{ opacity: 1; transform: translateY(0); }}
             }}
             .stTabs [data-baseweb="tab-list"] {{
-                gap: 10px;
+                gap: 20px;
                 justify-content: center;
             }}
             .stTabs [data-baseweb="tab"] {{
                 background-color: #f1f3f5;
-                border-radius: 10px 10px 0 0;
-                padding: 10px 20px;
-                color: #4b6584;
+                border-radius: 12px 12px 0 0;
+                padding: 12px 30px;
+                color: #000000;
+                font-weight: 800 !important;
+                font-size: 1.25em !important;
                 transition: all 0.3s;
             }}
             .stTabs [aria-selected="true"] {{
@@ -336,7 +338,7 @@ def check_password():
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
             st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-            tab1, tab2 = st.tabs(["🔑 Sign In", "📝 Create Account"])
+            tab1, tab2 = st.tabs(["🔑 Sign In", "📝 Register"])
             
             with tab1:
                 st.markdown("<div style='padding: 10px;'>", unsafe_allow_html=True)
