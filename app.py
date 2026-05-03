@@ -234,11 +234,16 @@ st.markdown("""<style>
         box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important;
     }
     
-    /* Hide the 'Press Enter to submit' hint (Global fix) */
-    [data-testid="stForm"] small, .stFormSubmitButton small, div[data-testid="stFormSubmitButton"] p {
+    /* Hide the 'Press Enter to submit' hint (Ultimate Global Fix) */
+    [data-testid="stForm"] small, 
+    .stFormSubmitButton small, 
+    div[data-testid="stFormSubmitButton"] p,
+    div[data-testid="stForm"] [data-testid="stMarkdownContainer"] p:only-child {
         display: none !important;
         visibility: hidden !important;
         height: 0px !important;
+        opacity: 0 !important;
+        font-size: 0px !important;
         margin: 0 !important;
         padding: 0 !important;
     }
