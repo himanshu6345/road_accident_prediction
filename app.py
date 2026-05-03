@@ -178,19 +178,27 @@ def check_password():
                     st.error("😕 Username or password incorrect")
                     
                 with st.expander("Forgot Password?"):
-                    st.write("Reset your password by verifying your registered email.")
-                    reset_user = st.text_input("Username", key="reset_username")
-                    reset_email = st.text_input("Registered Email Address", key="reset_email")
-                    reset_new_pass = st.text_input("New Password", type="password", key="reset_new_password")
-                    if st.button("Reset Password", use_container_width=True):
-                        if reset_user == "" or reset_email == "" or reset_new_pass == "":
-                            st.error("⚠️ All fields must be filled.")
-                        else:
-                            success, message = reset_password(reset_user, reset_email, reset_new_pass)
-                            if success:
-                                st.success(f"✅ {message}")
+                    if st.session_state.get('password_reset_success', False):
+                        st.success("✅ Password changed successfully!")
+                        st.info("You can now sign in with your new password.")
+                        if st.button("↩️ Back to Sign In", key="back_to_signin"):
+                            st.session_state.password_reset_success = False
+                            st.rerun()
+                    else:
+                        st.write("Reset your password by verifying your registered email.")
+                        reset_user = st.text_input("Username", key="reset_username")
+                        reset_email = st.text_input("Registered Email Address", key="reset_email")
+                        reset_new_pass = st.text_input("New Password", type="password", key="reset_new_password")
+                        if st.button("Reset Password", use_container_width=True):
+                            if reset_user == "" or reset_email == "" or reset_new_pass == "":
+                                st.error("⚠️ All fields must be filled.")
                             else:
-                                st.error(f"⚠️ {message}")
+                                success, message = reset_password(reset_user, reset_email, reset_new_pass)
+                                if success:
+                                    st.session_state.password_reset_success = True
+                                    st.rerun()
+                                else:
+                                    st.error(f"⚠️ {message}")
                                 
             with tab2:
                 if st.session_state.get('registration_success', False):
