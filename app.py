@@ -109,7 +109,7 @@ def fetch_live_data(location_name=None, lat=None, lon=None):
         elif w_code in [71, 73, 75, 77, 85, 86]: weather = 'Snow'
         else: weather = 'Rain'
         
-        current_hour = datetime.now().hour
+        current_hour = datetime.datetime.now().hour
         if 5 <= current_hour < 12: time_of_day = 'Morning'
         elif 12 <= current_hour < 17: time_of_day = 'Afternoon'
         elif 17 <= current_hour < 20: time_of_day = 'Evening'
