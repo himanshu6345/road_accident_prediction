@@ -364,7 +364,7 @@ def check_password():
                     st.markdown("### 🔒 Secure Login")
                     st.text_input("👤 Enter your Login ID", key="username", placeholder="Sign In ID")
                     st.text_input("🔑 Enter your Password", type="password", key="password", placeholder="Sign In Password")
-                    submit_login = st.form_submit_button("SIGN IN NOW 🔑", use_container_width=True)
+                    submit_login = st.form_submit_button("SIGN IN", use_container_width=True)
                 
                 if submit_login:
                     password_entered(st.session_state.username, st.session_state.password)
@@ -422,7 +422,7 @@ def check_password():
                         new_contact = st.text_input("📱 Enter Contact Number", placeholder="+91 XXXXX XXXXX")
                         new_pass = st.text_input("🔐 Create a Strong Password", type="password", placeholder="Register Password")
                         
-                        submitted = st.form_submit_button("REGISTER NOW ✅", use_container_width=True)
+                        submitted = st.form_submit_button("REGISTER", use_container_width=True)
                     
                     if submitted:
                         if not first_name or not last_name or not new_email or not new_pass:
