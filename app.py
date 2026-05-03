@@ -210,15 +210,20 @@ st.markdown("""<style>
     ::placeholder {
         color: #adb5bd !important;
         opacity: 1 !important;
-        transition: opacity 0.2s ease;
+        transition: color 0.2s ease, opacity 0.2s ease;
     }
     
-    /* Hide placeholder immediately when user clicks into the box */
-    .stTextInput input:focus::placeholder, 
-    .stTextArea textarea:focus::placeholder,
-    .stNumberInput input:focus::placeholder {
+    /* Strongest possible way to hide placeholder on click/focus */
+    input:focus::placeholder, textarea:focus::placeholder {
+        color: transparent !important;
         opacity: 0 !important;
     }
+    
+    /* Browser specific overrides for focus */
+    input:focus::-webkit-input-placeholder { color: transparent !important; }
+    input:focus:-moz-placeholder { color: transparent !important; }
+    input:focus::-moz-placeholder { color: transparent !important; }
+    input:focus:-ms-input-placeholder { color: transparent !important; }
 
     /* Improve Form appearance */
     [data-testid="stForm"] {
