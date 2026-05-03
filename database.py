@@ -3,7 +3,12 @@ import json
 import os
 import hashlib
 import secrets
-import mysql.connector
+try:
+    import mysql.connector
+    MYSQL_AVAILABLE = True
+except ImportError:
+    MYSQL_AVAILABLE = False
+
 
 DB_PATH = "app_data.db"
 OLD_USERS_DB = "users.json"
@@ -20,7 +25,7 @@ class DBConnection:
         self.cursor = None
         
         global DB_TYPE
-        if DB_TYPE == "mysql":
+        if DB_TYPE == "mysql" and MYSQL_AVAILABLE:
             try:
                 # Attempt to connect to the server without DB first to create it if needed
                 temp_conn = mysql.connector.connect(
@@ -44,6 +49,7 @@ class DBConnection:
                 self.setup_sqlite()
         else:
             self.setup_sqlite()
+
 
     def setup_sqlite(self):
         global DB_TYPE
