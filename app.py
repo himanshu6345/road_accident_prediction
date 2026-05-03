@@ -136,15 +136,58 @@ st.set_page_config(
 )
 
 # --- CSS FOR STYLING ---
-st.markdown("""
-<style>
-    .stApp { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
-    h1 { font-family: 'Inter', sans-serif; color: #2c3e50; text-align: center; margin-bottom: 0px !important; }
-    .subtitle { text-align: center; color: #7f8c8d; font-size: 1.1em; margin-bottom: 40px; }
-    .prediction-card { background-color: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); text-align: center; margin-top: 30px; }
-    .pred-value { font-size: 2em; font-weight: bold; color: #2980b9; }
-</style>
-""", unsafe_allow_html=True)
+st.markdown("""<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    
+    .stApp { 
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+        font-family: 'Inter', sans-serif;
+    }
+    
+    h1 { 
+        font-weight: 800; 
+        color: #1a1a1a; 
+        text-align: center; 
+        margin-bottom: 5px !important; 
+        letter-spacing: -1px;
+    }
+    
+    .subtitle { 
+        text-align: center; 
+        color: #4a4a4a; 
+        font-size: 1.2em; 
+        margin-bottom: 40px; 
+        font-weight: 400;
+    }
+    
+    .stMarkdown p, .stMarkdown li {
+        color: #2d3436;
+        font-size: 1.05em;
+    }
+    
+    .prediction-card { 
+        background-color: white; 
+        padding: 35px; 
+        border-radius: 20px; 
+        box-shadow: 0 15px 35px rgba(0,0,0,0.08); 
+        text-align: center; 
+        margin-top: 30px; 
+        border: 1px solid #f1f3f5;
+    }
+    
+    .pred-value { 
+        font-size: 2.5em; 
+        font-weight: 800; 
+        color: #0984e3; 
+    }
+    
+    /* Make labels more visible */
+    .stSelectbox label, .stTextInput label, .stNumberInput label {
+        color: #2d3436 !important;
+        font-weight: 600 !important;
+        font-size: 1em !important;
+    }
+</style>""", unsafe_allow_html=True)
 
 # --- USER AUTHENTICATION & DATABASE ---
 
