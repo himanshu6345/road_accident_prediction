@@ -6,7 +6,8 @@ import os
 import json
 from dotenv import load_dotenv
 import requests
-from datetime import datetime
+import datetime
+import pytz
 import xml.etree.ElementTree as ET
 from urllib.parse import quote_plus
 from streamlit_geolocation import streamlit_geolocation
@@ -241,8 +242,11 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
-        # Dynamic Greeting based on time
-        hour = datetime.now().hour
+        # Dynamic Greeting based on India Time (Kolkata)
+        ist = pytz.timezone('Asia/Kolkata')
+        india_time = datetime.datetime.now(ist)
+        hour = india_time.hour
+        
         if hour < 12: greeting = "Good Morning ☀️"
         elif hour < 18: greeting = "Good Afternoon 🌤️"
         else: greeting = "Good Evening 🌙"
@@ -498,8 +502,11 @@ def main():
     with col2:
         st.image(os.path.join(os.path.dirname(__file__), 'assets', 'top_banner.png'), use_container_width=True)
     
-    # Dynamic Greeting for Main Dashboard
-    hour = datetime.now().hour
+    # Dynamic Greeting for Main Dashboard (IST)
+    ist = pytz.timezone('Asia/Kolkata')
+    india_time = datetime.datetime.now(ist)
+    hour = india_time.hour
+    
     if hour < 12: greeting = "Good Morning ☀️"
     elif hour < 18: greeting = "Good Afternoon 🌤️"
     else: greeting = "Good Evening 🌙"
