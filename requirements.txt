@@ -9,3 +9,4 @@ python-dotenv>=1.0.0
 twilio>=8.5.0
 streamlit-geolocation>=0.0.10
 pytz
+streamlit-lottie

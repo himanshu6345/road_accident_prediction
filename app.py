@@ -11,6 +11,7 @@ import pytz
 import xml.etree.ElementTree as ET
 from urllib.parse import quote_plus
 from streamlit_geolocation import streamlit_geolocation
+from streamlit_lottie import st_lottie
 
 # Load environment variables
 load_dotenv()
@@ -270,6 +271,11 @@ st.markdown("""<style>
 
 
 # --- USER AUTHENTICATION & DATABASE ---
+def load_lottieurl(url):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
 
 def check_password():
     """Returns `True` if the user had a correct password."""
@@ -294,9 +300,9 @@ def check_password():
         else: greeting = "Good Evening 🌙"
         
         st.markdown(f"""
-        <div style='text-align: center; margin-top: 50px; animation: fadeIn 1s ease-in;'>
-            <h1 style='font-size: 3em; margin-bottom: 0;'>{greeting}</h1>
-            <p style='font-size: 1.2em; color: #636e72;'>Welcome to the Road Accident Prediction Portal</p>
+        <div style='text-align: center; margin-top: 30px; animation: fadeIn 1s ease-in;'>
+            <h1 style='font-size: 3.5em; margin-bottom: 0;'>{greeting}</h1>
+            <p style='font-size: 1.3em; color: #636e72;'>Safety first. Predict risks, save lives.</p>
         </div>
         
         <style>
@@ -321,6 +327,11 @@ def check_password():
             }}
         </style>
         """, unsafe_allow_html=True)
+        
+        # Add a Lottie Animation for interactivity
+        lottie_traffic = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_5njpXm.json")
+        if lottie_traffic:
+            st_lottie(lottie_traffic, height=200, key="traffic_lottie")
         
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
