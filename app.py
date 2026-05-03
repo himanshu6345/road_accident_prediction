@@ -183,11 +183,38 @@ st.markdown("""<style>
     
     /* Make labels more visible */
     .stSelectbox label, .stTextInput label, .stNumberInput label {
-        color: #2d3436 !important;
+        color: #1a1a1a !important;
         font-weight: 600 !important;
-        font-size: 1em !important;
+        font-size: 1.1em !important;
+    }
+
+    /* Make the input boxes themselves clearly visible with borders */
+    .stTextInput input, .stSelectbox [data-baseweb="select"], .stNumberInput input, .stTextArea textarea {
+        border: 2px solid #dee2e6 !important;
+        border-radius: 10px !important;
+        padding: 10px !important;
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        font-size: 1.05em !important;
+        transition: all 0.3s ease;
+    }
+
+    /* Highlight box when user clicks on it */
+    .stTextInput input:focus, .stSelectbox [data-baseweb="select"]:focus, .stNumberInput input:focus {
+        border-color: #0984e3 !important;
+        box-shadow: 0 0 0 3px rgba(9, 132, 227, 0.2) !important;
+    }
+
+    /* Improve Form appearance */
+    [data-testid="stForm"] {
+        background-color: white !important;
+        padding: 30px !important;
+        border-radius: 20px !important;
+        border: 1px solid #e9ecef !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important;
     }
 </style>""", unsafe_allow_html=True)
+
 
 # --- USER AUTHENTICATION & DATABASE ---
 
