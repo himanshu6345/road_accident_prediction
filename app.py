@@ -265,8 +265,26 @@ st.markdown("""<style>
         .subtitle {
             font-size: 1em !important;
         }
+    /* Make primary buttons extremely visible */
+    div.stButton > button:first-child, .stFormSubmitButton > button {
+        background-color: #0984e3 !important;
+        color: white !important;
+        font-weight: 800 !important;
+        font-size: 1.2em !important;
+        padding: 15px !important;
+        border-radius: 12px !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(9, 132, 227, 0.3) !important;
+        transition: all 0.3s ease;
+    }
+    
+    div.stButton > button:hover, .stFormSubmitButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(9, 132, 227, 0.4) !important;
+        background-color: #074da1 !important;
     }
 </style>""", unsafe_allow_html=True)
+
 
 
 
@@ -346,7 +364,7 @@ def check_password():
                     st.markdown("### 🔒 Secure Login")
                     st.text_input("👤 Enter your Login ID", key="username", placeholder="Your Login ID")
                     st.text_input("🔑 Enter your Password", type="password", key="password", placeholder="Your Password")
-                    submit_login = st.form_submit_button("Access Dashboard 🚀", use_container_width=True)
+                    submit_login = st.form_submit_button("SIGN IN NOW 🔑", use_container_width=True)
                 
                 if submit_login:
                     password_entered(st.session_state.username, st.session_state.password)
@@ -404,7 +422,7 @@ def check_password():
                         new_contact = st.text_input("📱 Enter Contact Number", placeholder="+91 XXXXX XXXXX")
                         new_pass = st.text_input("🔐 Create a Strong Password", type="password", placeholder="Choose a password")
                         
-                        submitted = st.form_submit_button("CREATE MY ACCOUNT ✅", use_container_width=True)
+                        submitted = st.form_submit_button("REGISTER NOW ✅", use_container_width=True)
                     
                     if submitted:
                         if not first_name or not last_name or not new_email or not new_pass:
