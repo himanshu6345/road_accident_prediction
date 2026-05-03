@@ -184,26 +184,27 @@ st.markdown("""<style>
     
     /* Make labels more visible */
     .stSelectbox label, .stTextInput label, .stNumberInput label {
-        color: #1a1a1a !important;
-        font-weight: 600 !important;
-        font-size: 1.1em !important;
+        color: #000000 !important;
+        font-weight: 800 !important;
+        font-size: 1.15em !important;
     }
 
-    /* Make the input boxes themselves clearly visible with borders */
+    /* Make the input boxes themselves extremely visible with thick borders */
     .stTextInput input, .stSelectbox [data-baseweb="select"], .stNumberInput input, .stTextArea textarea {
-        border: 2px solid #dee2e6 !important;
-        border-radius: 10px !important;
-        padding: 10px !important;
+        border: 3px solid #2d3436 !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
         background-color: #ffffff !important;
-        color: #1a1a1a !important;
-        font-size: 1.05em !important;
+        color: #000000 !important;
+        font-size: 1.1em !important;
+        font-weight: 600 !important;
         transition: all 0.3s ease;
     }
 
     /* Highlight box when user clicks on it */
     .stTextInput input:focus, .stSelectbox [data-baseweb="select"]:focus, .stNumberInput input:focus {
         border-color: #0984e3 !important;
-        box-shadow: 0 0 0 3px rgba(9, 132, 227, 0.2) !important;
+        box-shadow: 0 0 0 4px rgba(9, 132, 227, 0.3) !important;
     }
 
     /* Make placeholders clearly visible but hide them on focus */
@@ -227,11 +228,11 @@ st.markdown("""<style>
 
     /* Improve Form appearance and hide 'Press Enter to submit' hint */
     [data-testid="stForm"] {
-        background-color: white !important;
-        padding: 30px !important;
-        border-radius: 20px !important;
-        border: 1px solid #e9ecef !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important;
+        background-color: #ffffff !important;
+        padding: 40px !important;
+        border-radius: 25px !important;
+        border: 3px solid #dfe6e9 !important;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1) !important;
     }
     
     /* Hide the 'Press Enter to submit' hint (Ultimate Global Fix) */
