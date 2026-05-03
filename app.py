@@ -241,17 +241,53 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
-        st.markdown("<br><br><h2 style='text-align: center;'>🔒 Authorized Access Only</h2>", unsafe_allow_html=True)
+        # Dynamic Greeting based on time
+        hour = datetime.now().hour
+        if hour < 12: greeting = "Good Morning ☀️"
+        elif hour < 18: greeting = "Good Afternoon 🌤️"
+        else: greeting = "Good Evening 🌙"
+        
+        st.markdown(f"""
+        <div style='text-align: center; margin-top: 50px; animation: fadeIn 1s ease-in;'>
+            <h1 style='font-size: 3em; margin-bottom: 0;'>{greeting}</h1>
+            <p style='font-size: 1.2em; color: #636e72;'>Welcome to the Road Accident Prediction Portal</p>
+        </div>
+        
+        <style>
+            @keyframes fadeIn {{
+                from {{ opacity: 0; transform: translateY(20px); }}
+                to {{ opacity: 1; transform: translateY(0); }}
+            }}
+            .stTabs [data-baseweb="tab-list"] {{
+                gap: 10px;
+                justify-content: center;
+            }}
+            .stTabs [data-baseweb="tab"] {{
+                background-color: #f1f3f5;
+                border-radius: 10px 10px 0 0;
+                padding: 10px 20px;
+                color: #4b6584;
+                transition: all 0.3s;
+            }}
+            .stTabs [aria-selected="true"] {{
+                background-color: #0984e3 !important;
+                color: white !important;
+            }}
+        </style>
+        """, unsafe_allow_html=True)
+        
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
-            tab1, tab2 = st.tabs(["Sign In", "Register"])
+            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+            tab1, tab2 = st.tabs(["🔑 Sign In", "📝 Create Account"])
             
             with tab1:
-                st.write("Please sign in to access the dashboard.")
+                st.markdown("<div style='padding: 10px;'>", unsafe_allow_html=True)
                 with st.form("login_form"):
-                    st.text_input("Username", key="username", placeholder="Enter your Login ID")
-                    st.text_input("Password", type="password", key="password", placeholder="Enter your password")
-                    submit_login = st.form_submit_button("Sign In", use_container_width=True)
+                    st.markdown("### 🔒 Secure Login")
+                    st.text_input("👤 Username", key="username", placeholder="Enter your Login ID")
+                    st.text_input("🔑 Password", type="password", key="password", placeholder="Enter your password")
+                    submit_login = st.form_submit_button("Access Dashboard 🚀", use_container_width=True)
                 
                 if submit_login:
                     password_entered(st.session_state.username, st.session_state.password)
@@ -261,7 +297,7 @@ def check_password():
                     st.error("😕 Username or password incorrect")
                     st.info("💡 **Tip:** If you just registered on your local computer, you must register again on this Cloud URL, as they use separate databases.")
                     
-                with st.expander("Forgot Password?"):
+                with st.expander("❓ Forgot Password?"):
                     if st.session_state.get('password_reset_success', False):
                         st.success("✅ Password changed successfully!")
                         st.info("You can now sign in with your new password.")
@@ -271,10 +307,10 @@ def check_password():
                     else:
                         st.write("Reset your password by verifying your registered email.")
                         with st.form("reset_form"):
-                            reset_user = st.text_input("Username", key="reset_username", placeholder="Your Login ID")
-                            reset_email = st.text_input("Registered Email Address", key="reset_email", placeholder="email@example.com")
-                            reset_new_pass = st.text_input("New Password", type="password", key="reset_new_password", placeholder="Choose a strong password")
-                            submit_reset = st.form_submit_button("Reset Password", use_container_width=True)
+                            reset_user = st.text_input("👤 Username", key="reset_username", placeholder="Your Login ID")
+                            reset_email = st.text_input("📧 Registered Email", key="reset_email", placeholder="email@example.com")
+                            reset_new_pass = st.text_input("🆕 New Password", type="password", key="reset_new_password", placeholder="Choose a strong password")
+                            submit_reset = st.form_submit_button("Reset My Password", use_container_width=True)
                         
                         if submit_reset:
                             if reset_user == "" or reset_email == "" or reset_new_pass == "":
@@ -286,29 +322,34 @@ def check_password():
                                     st.rerun()
                                 else:
                                     st.error(f"⚠️ {message}")
+                st.markdown("</div>", unsafe_allow_html=True)
                                 
             with tab2:
+                st.markdown("<div style='padding: 10px;'>", unsafe_allow_html=True)
                 if st.session_state.get('registration_success', False):
-                    st.success(f"✅ Account created successfully!")
+                    st.success(f"🎉 Account created successfully!")
                     st.info(f"**IMPORTANT: Your generated Login ID is:** `{st.session_state.new_login_id}`\n\nPlease switch to the Sign In tab and use this Login ID to sign in.")
                     if st.button("⬅️ Register Another Account"):
                         st.session_state.registration_success = False
                         st.rerun()
                 else:
-                    st.write("Create a new account.")
-                    
+                    st.markdown("### 📝 New Registration")
                     with st.form("registration_form"):
-                        first_name = st.text_input("First Name", placeholder="e.g. Himanshu")
-                        last_name = st.text_input("Last Name", placeholder="e.g. Prajapati")
-                        new_email = st.text_input("Email ID", placeholder="your@email.com")
-                        new_contact = st.text_input("Contact Number", placeholder="+91 XXXXX XXXXX")
-                        new_pass = st.text_input("Create Password", type="password", placeholder="Create a strong password")
+                        r_col1, r_col2 = st.columns(2)
+                        with r_col1:
+                            first_name = st.text_input("👤 First Name", placeholder="e.g. Himanshu")
+                        with r_col2:
+                            last_name = st.text_input("👤 Last Name", placeholder="e.g. Prajapati")
+                        
+                        new_email = st.text_input("📧 Email Address", placeholder="your@email.com")
+                        new_contact = st.text_input("📱 Contact Number", placeholder="+91 XXXXX XXXXX")
+                        new_pass = st.text_input("🔐 Create Password", type="password", placeholder="Create a strong password")
                         
                         submitted = st.form_submit_button("Complete Registration ✅", use_container_width=True)
-                        
+                    
                     if submitted:
                         if not first_name or not last_name or not new_email or not new_pass:
-                            st.error("⚠️ First Name, Last Name, Email, and Password are required.")
+                            st.error("⚠️ All required fields must be filled.")
                         else:
                             base_username = f"{first_name.strip().lower()}{last_name.strip().lower()}"
                             import random
@@ -334,6 +375,7 @@ def check_password():
                                     new_user = f"{base_username}{random.randint(10, 9999)}"
                             else:
                                 st.error("⚠️ Could not generate a unique username. Please try again.")
+                st.markdown("</div>", unsafe_allow_html=True)
         return False
     else:
         # Password correct.
