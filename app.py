@@ -234,11 +234,13 @@ st.markdown("""<style>
         box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important;
     }
     
-    /* Hide the 'Press Enter to submit' hint (Aggressive Selector) */
-    [data-testid="stForm"] small {
+    /* Hide the 'Press Enter to submit' hint (Global fix) */
+    [data-testid="stForm"] small, .stFormSubmitButton small, div[data-testid="stFormSubmitButton"] p {
         display: none !important;
         visibility: hidden !important;
         height: 0px !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
     /* Mobile Responsiveness for inputs and placeholders */
