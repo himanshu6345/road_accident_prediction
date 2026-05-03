@@ -206,14 +206,18 @@ st.markdown("""<style>
         box-shadow: 0 0 0 3px rgba(9, 132, 227, 0.2) !important;
     }
 
-    /* Make placeholders clearly visible */
+    /* Make placeholders clearly visible but hide them on focus */
     ::placeholder {
-        color: #7f8c8d !important;
-        opacity: 1 !important; /* Firefox override */
+        color: #adb5bd !important;
+        opacity: 1 !important;
+        transition: opacity 0.2s ease;
     }
     
-    ::-ms-input-placeholder { /* Edge/IE */
-        color: #7f8c8d !important;
+    /* Hide placeholder immediately when user clicks into the box */
+    .stTextInput input:focus::placeholder, 
+    .stTextArea textarea:focus::placeholder,
+    .stNumberInput input:focus::placeholder {
+        opacity: 0 !important;
     }
 
     /* Improve Form appearance */
