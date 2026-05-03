@@ -157,9 +157,6 @@ def check_password():
         if verify_user(username_val, password_val):
             st.session_state["password_correct"] = True
             st.session_state["logged_in_user"] = username_val
-            # Clear state to avoid keeping password in memory
-            st.session_state["username"] = ""
-            st.session_state["password"] = ""
         else:
             st.session_state["password_correct"] = False
 
