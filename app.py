@@ -835,7 +835,12 @@ def main():
                             accidents = fetch_recent_accidents(short_city)
                     
                         if not err:
-                            st.success(f"📍 **Location Identified:** {live_loc_input}")
+                            # If reverse geocoding failed to give a pretty name, use the one from satellite data
+                            display_name = live_loc_input
+                            if "Lat:" in display_name and live_data.get('City'):
+                                display_name = f"{live_data['City']}, {live_data['State']}"
+                            
+                            st.success(f"📍 **Location Identified:** {display_name}")
                             st.info(f"✅ Data fetched! Weather: {live_data['Weather_Condition']} ({live_data['Temperature']}°C) | Time: {live_data['Time_of_Day']}")
                     
                         st.write("#### 🗺️ Live Location Map")
