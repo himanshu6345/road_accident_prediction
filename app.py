@@ -168,9 +168,12 @@ def check_password():
             
             with tab1:
                 st.write("Please sign in to access the dashboard.")
-                st.text_input("Username", key="username")
-                st.text_input("Password", type="password", key="password")
-                if st.button("Sign In", use_container_width=True, key="login_btn"):
+                with st.form("login_form"):
+                    st.text_input("Username", key="username")
+                    st.text_input("Password", type="password", key="password")
+                    submit_login = st.form_submit_button("Sign In", use_container_width=True)
+                
+                if submit_login:
                     password_entered()
                     st.rerun()
                 
@@ -186,10 +189,13 @@ def check_password():
                             st.rerun()
                     else:
                         st.write("Reset your password by verifying your registered email.")
-                        reset_user = st.text_input("Username", key="reset_username")
-                        reset_email = st.text_input("Registered Email Address", key="reset_email")
-                        reset_new_pass = st.text_input("New Password", type="password", key="reset_new_password")
-                        if st.button("Reset Password", use_container_width=True):
+                        with st.form("reset_form"):
+                            reset_user = st.text_input("Username", key="reset_username")
+                            reset_email = st.text_input("Registered Email Address", key="reset_email")
+                            reset_new_pass = st.text_input("New Password", type="password", key="reset_new_password")
+                            submit_reset = st.form_submit_button("Reset Password", use_container_width=True)
+                        
+                        if submit_reset:
                             if reset_user == "" or reset_email == "" or reset_new_pass == "":
                                 st.error("⚠️ All fields must be filled.")
                             else:
