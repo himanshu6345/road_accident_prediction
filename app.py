@@ -362,8 +362,8 @@ def check_password():
                 st.markdown("<div style='padding: 10px;'>", unsafe_allow_html=True)
                 with st.form("login_form"):
                     st.markdown("### 🔒 Secure Login")
-                    st.text_input("👤 Enter your Login ID", key="username", placeholder="Your Login ID")
-                    st.text_input("🔑 Enter your Password", type="password", key="password", placeholder="Your Password")
+                    st.text_input("👤 Enter your Login ID", key="username", placeholder="Sign In ID")
+                    st.text_input("🔑 Enter your Password", type="password", key="password", placeholder="Sign In Password")
                     submit_login = st.form_submit_button("SIGN IN NOW 🔑", use_container_width=True)
                 
                 if submit_login:
@@ -420,7 +420,7 @@ def check_password():
                         
                         new_email = st.text_input("📧 Enter Email Address", placeholder="your@email.com")
                         new_contact = st.text_input("📱 Enter Contact Number", placeholder="+91 XXXXX XXXXX")
-                        new_pass = st.text_input("🔐 Create a Strong Password", type="password", placeholder="Choose a password")
+                        new_pass = st.text_input("🔐 Create a Strong Password", type="password", placeholder="Register Password")
                         
                         submitted = st.form_submit_button("REGISTER NOW ✅", use_container_width=True)
                     
