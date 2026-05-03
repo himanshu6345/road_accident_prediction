@@ -742,7 +742,7 @@ def main():
     
             # Prediction Logic
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Predict Outcome 🎯", key="btn_manual", use_container_width=True):
+            if st.button("SUBMIT", key="btn_manual", use_container_width=True):
                 predict_clicked = True
                 active_user_inputs = user_inputs
                 active_live_loc = ""
@@ -791,7 +791,7 @@ def main():
             with l_cols[2]:
                 live_speed = st.number_input("Your Vehicle Speed (km/h)", min_value=15.0, max_value=220.0, value=60.0, key='live_speed')
             
-            btn_pressed = st.button("Fetch Live Data & Predict 🚀", key="btn_live", use_container_width=True)
+            btn_pressed = st.button("SUBMIT", key="btn_live", use_container_width=True)
             if btn_pressed or st.session_state.get('auto_trigger_live', False):
                 st.session_state['auto_trigger_live'] = False # Reset immediately
                 if not live_loc_input:
