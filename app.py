@@ -390,19 +390,19 @@ def check_password():
                         st.session_state.registration_success = False
                         st.rerun()
                 else:
-                    st.markdown("### 📝 New Registration")
+                    st.markdown("<h3 style='color: #000000; font-weight: 800;'>📝 New Registration</h3>", unsafe_allow_html=True)
                     with st.form("registration_form"):
                         r_col1, r_col2 = st.columns(2)
                         with r_col1:
-                            first_name = st.text_input("👤 First Name", placeholder="e.g. Himanshu")
+                            first_name = st.text_input("👤 Enter First Name", placeholder="e.g. Himanshu")
                         with r_col2:
-                            last_name = st.text_input("👤 Last Name", placeholder="e.g. Prajapati")
+                            last_name = st.text_input("👤 Enter Last Name", placeholder="e.g. Prajapati")
                         
-                        new_email = st.text_input("📧 Email Address", placeholder="your@email.com")
-                        new_contact = st.text_input("📱 Contact Number", placeholder="+91 XXXXX XXXXX")
-                        new_pass = st.text_input("🔐 Create Password", type="password", placeholder="Create a strong password")
+                        new_email = st.text_input("📧 Enter Email Address", placeholder="your@email.com")
+                        new_contact = st.text_input("📱 Enter Contact Number", placeholder="+91 XXXXX XXXXX")
+                        new_pass = st.text_input("🔐 Create a Strong Password", type="password", placeholder="Choose a password")
                         
-                        submitted = st.form_submit_button("Complete Registration ✅", use_container_width=True)
+                        submitted = st.form_submit_button("CREATE MY ACCOUNT ✅", use_container_width=True)
                     
                     if submitted:
                         if not first_name or not last_name or not new_email or not new_pass:
