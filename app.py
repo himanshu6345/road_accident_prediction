@@ -151,12 +151,15 @@ st.markdown("""
 def check_password():
     """Returns `True` if the user had a correct password."""
 
-    def password_entered():
-        if verify_user(st.session_state.get("username"), st.session_state.get("password")):
+    def password_entered(username_val, password_val):
+        # Normalize username to lowercase and trim spaces
+        username_val = username_val.strip().lower() if username_val else ""
+        if verify_user(username_val, password_val):
             st.session_state["password_correct"] = True
-            st.session_state["logged_in_user"] = st.session_state.get("username")
-            if "password" in st.session_state:
-                del st.session_state["password"]  # don't store password
+            st.session_state["logged_in_user"] = username_val
+            # Clear state to avoid keeping password in memory
+            st.session_state["username"] = ""
+            st.session_state["password"] = ""
         else:
             st.session_state["password_correct"] = False
 
@@ -174,11 +177,12 @@ def check_password():
                     submit_login = st.form_submit_button("Sign In", use_container_width=True)
                 
                 if submit_login:
-                    password_entered()
+                    password_entered(st.session_state.username, st.session_state.password)
                     st.rerun()
                 
                 if "password_correct" in st.session_state and not st.session_state["password_correct"]:
                     st.error("😕 Username or password incorrect")
+                    st.info("💡 **Tip:** If you just registered on your local computer, you must register again on this Cloud URL, as they use separate databases.")
                     
                 with st.expander("Forgot Password?"):
                     if st.session_state.get('password_reset_success', False):

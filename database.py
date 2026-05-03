@@ -146,6 +146,7 @@ def hash_password(password, salt=None):
 
 def add_user(username, password, email=None, full_name=None, contact_number=None):
     db = get_db_connection()
+    username = username.strip().lower() # Force lowercase for all users
     
     try:
         # Check if user exists
@@ -167,6 +168,7 @@ def add_user(username, password, email=None, full_name=None, contact_number=None
 
 def verify_user(username, password):
     db = get_db_connection()
+    username = username.strip().lower() if username else ""
     
     db.execute('SELECT password_hash, salt FROM users WHERE username = ?', (username,))
     user = db.fetchone()
