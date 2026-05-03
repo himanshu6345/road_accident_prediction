@@ -342,8 +342,8 @@ def check_password():
                 st.markdown("<div style='padding: 10px;'>", unsafe_allow_html=True)
                 with st.form("login_form"):
                     st.markdown("### 🔒 Secure Login")
-                    st.text_input("👤 Username", key="username", placeholder="Enter your Login ID")
-                    st.text_input("🔑 Password", type="password", key="password", placeholder="Enter your password")
+                    st.text_input("👤 Enter your Login ID", key="username", placeholder="Your Login ID")
+                    st.text_input("🔑 Enter your Password", type="password", key="password", placeholder="Your Password")
                     submit_login = st.form_submit_button("Access Dashboard 🚀", use_container_width=True)
                 
                 if submit_login:
