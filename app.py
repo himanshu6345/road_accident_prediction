@@ -777,10 +777,18 @@ def main():
                             address = bdc_resp.get('principalSubdivision', '')
                             locality = bdc_resp.get('locality', '')
                             city = bdc_resp.get('city', '')
+                            village = bdc_resp.get('village', '') # Specifically look for village
+                            suburb = bdc_resp.get('suburb', '')
                             
-                            # Build a pretty name
-                            name_parts = [p for p in [locality, city, address] if p]
-                            loc_str = ", ".join(name_parts) if name_parts else f"Lat: {lat:.4f}, Lon: {lon:.4f}"
+                            # Build a detailed name including village/city
+                            name_parts = [p for p in [village, suburb, locality, city, address] if p]
+                            # Remove duplicates if city/locality are the same
+                            unique_parts = []
+                            for p in name_parts:
+                                if p not in unique_parts:
+                                    unique_parts.append(p)
+                                    
+                            loc_str = ", ".join(unique_parts) if unique_parts else f"Lat: {lat:.4f}, Lon: {lon:.4f}"
                         except Exception:
                             # Fallback to Nominatim if BigDataCloud fails
                             try:
