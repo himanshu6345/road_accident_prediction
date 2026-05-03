@@ -225,13 +225,18 @@ st.markdown("""<style>
     input:focus::-moz-placeholder { color: transparent !important; }
     input:focus:-ms-input-placeholder { color: transparent !important; }
 
-    /* Improve Form appearance */
+    /* Improve Form appearance and hide 'Press Enter to submit' hint */
     [data-testid="stForm"] {
         background-color: white !important;
         padding: 30px !important;
         border-radius: 20px !important;
         border: 1px solid #e9ecef !important;
         box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important;
+    }
+    
+    /* Hide the 'Press Enter to submit' hint */
+    [data-testid="stForm"] > div > div > small {
+        display: none !important;
     }
 
     /* Mobile Responsiveness for inputs and placeholders */
