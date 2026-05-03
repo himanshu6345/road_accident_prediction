@@ -205,6 +205,16 @@ st.markdown("""<style>
         box-shadow: 0 0 0 3px rgba(9, 132, 227, 0.2) !important;
     }
 
+    /* Make placeholders clearly visible */
+    ::placeholder {
+        color: #7f8c8d !important;
+        opacity: 1 !important; /* Firefox override */
+    }
+    
+    ::-ms-input-placeholder { /* Edge/IE */
+        color: #7f8c8d !important;
+    }
+
     /* Improve Form appearance */
     [data-testid="stForm"] {
         background-color: white !important;
@@ -239,8 +249,8 @@ def check_password():
             with tab1:
                 st.write("Please sign in to access the dashboard.")
                 with st.form("login_form"):
-                    st.text_input("Username", key="username")
-                    st.text_input("Password", type="password", key="password")
+                    st.text_input("Username", key="username", placeholder="Enter your Login ID")
+                    st.text_input("Password", type="password", key="password", placeholder="Enter your password")
                     submit_login = st.form_submit_button("Sign In", use_container_width=True)
                 
                 if submit_login:
@@ -261,9 +271,9 @@ def check_password():
                     else:
                         st.write("Reset your password by verifying your registered email.")
                         with st.form("reset_form"):
-                            reset_user = st.text_input("Username", key="reset_username")
-                            reset_email = st.text_input("Registered Email Address", key="reset_email")
-                            reset_new_pass = st.text_input("New Password", type="password", key="reset_new_password")
+                            reset_user = st.text_input("Username", key="reset_username", placeholder="Your Login ID")
+                            reset_email = st.text_input("Registered Email Address", key="reset_email", placeholder="email@example.com")
+                            reset_new_pass = st.text_input("New Password", type="password", key="reset_new_password", placeholder="Choose a strong password")
                             submit_reset = st.form_submit_button("Reset Password", use_container_width=True)
                         
                         if submit_reset:
@@ -288,11 +298,11 @@ def check_password():
                     st.write("Create a new account.")
                     
                     with st.form("registration_form"):
-                        first_name = st.text_input("First Name")
-                        last_name = st.text_input("Last Name")
-                        new_email = st.text_input("Email ID")
-                        new_contact = st.text_input("Contact Number")
-                        new_pass = st.text_input("Create Password", type="password")
+                        first_name = st.text_input("First Name", placeholder="e.g. Himanshu")
+                        last_name = st.text_input("Last Name", placeholder="e.g. Prajapati")
+                        new_email = st.text_input("Email ID", placeholder="your@email.com")
+                        new_contact = st.text_input("Contact Number", placeholder="+91 XXXXX XXXXX")
+                        new_pass = st.text_input("Create Password", type="password", placeholder="Create a strong password")
                         
                         submitted = st.form_submit_button("Complete Registration ✅", use_container_width=True)
                         
