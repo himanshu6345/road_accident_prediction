@@ -170,7 +170,7 @@ def check_password():
                 st.write("Please sign in to access the dashboard.")
                 st.text_input("Username", key="username")
                 st.text_input("Password", type="password", key="password")
-                if st.button("Sign In", use_container_width=True):
+                if st.button("Sign In", use_container_width=True, key="login_btn"):
                     password_entered()
                     st.rerun()
                 
@@ -374,7 +374,7 @@ def main():
     # Sidebar for Upload
     st.sidebar.header("🚪 Session")
     st.sidebar.write(f"Logged in as: **{st.session_state.get('logged_in_user', 'User')}**")
-    if st.sidebar.button("Logout"):
+    if st.sidebar.button("Logout", key="logout_btn"):
         for key in st.session_state.keys():
             del st.session_state[key]
         st.rerun()
@@ -788,30 +788,35 @@ def main():
     # --- ADMIN DASHBOARD ---
     if st.session_state.get('logged_in_user') == 'admin':
         with tab_admin:
-            st.markdown("---")
-            st.header("🛡️ Admin Dashboard")
-            
-            col_admin1, col_admin2 = st.columns([3, 1])
-            with col_admin1:
-                st.write("Welcome, Admin. Here are the users registered in the system:")
-            with col_admin2:
-                if st.button("🔄 Refresh Data"):
-                    st.rerun()
-                    
-            users = get_all_users()
-            if users:
-                df_users = pd.DataFrame(users)
-                st.dataframe(df_users, use_container_width=True)
-            else:
-                st.info("No users found.")
+            # Fragment for localized refresh
+            @st.fragment
+            def render_admin_tables():
+                st.markdown("---")
+                st.header("🛡️ Admin Dashboard")
                 
-            st.write("### System Prediction History")
-            all_preds = get_all_predictions()
-            if all_preds:
-                df_preds = pd.DataFrame(all_preds)
-                st.dataframe(df_preds, use_container_width=True)
-            else:
-                st.info("No predictions found in the system.")
+                col_admin1, col_admin2 = st.columns([3, 1])
+                with col_admin1:
+                    st.write("Welcome, Admin. Here are the users registered in the system:")
+                with col_admin2:
+                    # Clicking this button will only rerun this fragment, refreshing the data below
+                    st.button("🔄 Refresh Data", key="refresh_admin_data")
+                        
+                users = get_all_users()
+                if users:
+                    df_users = pd.DataFrame(users)
+                    st.dataframe(df_users, use_container_width=True)
+                else:
+                    st.info("No users found.")
+                    
+                st.write("### System Prediction History")
+                all_preds = get_all_predictions()
+                if all_preds:
+                    df_preds = pd.DataFrame(all_preds)
+                    st.dataframe(df_preds, use_container_width=True)
+                else:
+                    st.info("No predictions found in the system.")
+            
+            render_admin_tables()
 
     # --- AI CHATBOT INTERFACE ---
     with tab_chat:
