@@ -834,10 +834,9 @@ def main():
                             short_city = live_loc_input.split(',')[0]
                             accidents = fetch_recent_accidents(short_city)
                     
-                    if err:
-                        st.error(f"Error fetching data: {err}")
-                    else:
-                        st.success(f"✅ Data fetched! Current Weather: {live_data['Weather_Condition']} ({live_data['Temperature']}°C) | Time: {live_data['Time_of_Day']}")
+                        if not err:
+                            st.success(f"📍 **Location Identified:** {live_loc_input}")
+                            st.info(f"✅ Data fetched! Weather: {live_data['Weather_Condition']} ({live_data['Temperature']}°C) | Time: {live_data['Time_of_Day']}")
                     
                         st.write("#### 🗺️ Live Location Map")
                         map_df = pd.DataFrame({'lat': [live_data['Lat']], 'lon': [live_data['Lon']]})
