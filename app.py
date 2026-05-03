@@ -77,7 +77,11 @@ def fetch_live_data(location_name=None, lat=None, lon=None):
         
         if lat is None or lon is None:
             geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={location_name}&count=1&language=en&format=json"
-            geo_resp = requests.get(geocode_url).json()
+            response = requests.get(geocode_url, timeout=5)
+            if response.status_code != 200:
+                return None, "Location service currently unavailable."
+            
+            geo_resp = response.json()
             if 'results' not in geo_resp or not geo_resp['results']:
                 return None, "Location not found."
                 
@@ -89,13 +93,13 @@ def fetch_live_data(location_name=None, lat=None, lon=None):
             # Try to fetch State and City using the provided location name string
             search_name = location_name.split(',')[0] if location_name else "New Delhi"
             geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={search_name}&count=1&language=en&format=json"
-            geo_resp = requests.get(geocode_url).json()
+            geo_resp = requests.get(geocode_url, timeout=5).json()
             if 'results' in geo_resp and geo_resp['results']:
                 state = geo_resp['results'][0].get('admin1', 'Delhi')
                 city = geo_resp['results'][0].get('name', 'New Delhi')
         
         weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,weather_code"
-        weather_resp = requests.get(weather_url).json()
+        weather_resp = requests.get(weather_url, timeout=5).json()
         current = weather_resp.get('current', {})
         w_code = current.get('weather_code', 0)
         temp = current.get('temperature_2m', 0)
@@ -766,19 +770,38 @@ def main():
                         st.session_state['last_lat'] = lat
                     
                         # Reverse geocode with Nominatim to get exact address
-                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-                        rev = requests.get(f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=jsonv2", headers=headers, timeout=5).json()
-                    
-                        loc_str = rev.get('display_name') or "Unknown Location"
+                        # Using a custom User-Agent to comply with Nominatim's policy
+                        headers = {'User-Agent': 'RoadAccidentPredictionApp/1.0 (himanshuprajapati@example.com)'}
+                        response = requests.get(
+                            f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=jsonv2", 
+                            headers=headers, 
+                            timeout=5
+                        )
+                        
+                        if response.status_code == 200:
+                            try:
+                                rev = response.json()
+                                loc_str = rev.get('display_name') or "Unknown Location"
+                            except Exception:
+                                loc_str = f"Lat: {lat:.4f}, Lon: {lon:.4f}"
+                        else:
+                            loc_str = f"Lat: {lat:.4f}, Lon: {lon:.4f}"
+                        
                         st.session_state['auto_loc'] = loc_str
                         st.session_state['live_loc_input'] = loc_str # Force widget update
                         st.session_state['auto_trigger_live'] = True
-                        # Pass the exact coordinates forward to bypass geocoding issues with long names
                         st.session_state['detected_lat'] = lat
                         st.session_state['detected_lon'] = lon
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Could not reverse geocode: {e}")
+                        # Fallback for geocoding errors (e.g. rate limit)
+                        st.warning("⚠️ Location service is busy. Using coordinates instead.")
+                        st.session_state['auto_loc'] = f"{gps_loc['latitude']:.4f}, {gps_loc['longitude']:.4f}"
+                        st.session_state['live_loc_input'] = st.session_state['auto_loc']
+                        st.session_state['auto_trigger_live'] = True
+                        st.session_state['detected_lat'] = gps_loc['latitude']
+                        st.session_state['detected_lon'] = gps_loc['longitude']
+                        st.rerun()
                     
             with col_text:
                 live_loc_input = st.text_input("Enter Live City/Area (e.g. Pune)", value=st.session_state['auto_loc'], key='live_loc_input')
