@@ -228,7 +228,25 @@ st.markdown("""<style>
         border: 1px solid #e9ecef !important;
         box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important;
     }
+
+    /* Mobile Responsiveness for inputs and placeholders */
+    @media (max-width: 640px) {
+        .stTextInput input, .stSelectbox [data-baseweb="select"], .stNumberInput input {
+            font-size: 14px !important;
+            padding: 8px !important;
+        }
+        ::placeholder {
+            font-size: 13px !important;
+        }
+        h1 {
+            font-size: 2em !important;
+        }
+        .subtitle {
+            font-size: 1em !important;
+        }
+    }
 </style>""", unsafe_allow_html=True)
+
 
 
 # --- USER AUTHENTICATION & DATABASE ---
