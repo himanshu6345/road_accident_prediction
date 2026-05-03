@@ -497,7 +497,14 @@ def main():
     col1, col2, col3 = st.columns([1, 4, 1])
     with col2:
         st.image(os.path.join(os.path.dirname(__file__), 'assets', 'top_banner.png'), use_container_width=True)
-    st.markdown("<h1>Dynamic Data Mining Predictor</h1>", unsafe_allow_html=True)
+    
+    # Dynamic Greeting for Main Dashboard
+    hour = datetime.now().hour
+    if hour < 12: greeting = "Good Morning ☀️"
+    elif hour < 18: greeting = "Good Afternoon 🌤️"
+    else: greeting = "Good Evening 🌙"
+    
+    st.markdown(f"<h1 style='font-size: 2.5em; margin-bottom: 5px;'>{greeting}, {st.session_state.get('logged_in_user', 'User')}</h1>", unsafe_allow_html=True)
     st.markdown("<div class='subtitle'>Upload any dataset to train and predict instantly!</div>", unsafe_allow_html=True)
 
     # Sidebar for Upload
