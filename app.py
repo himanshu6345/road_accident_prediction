@@ -447,25 +447,6 @@ def check_password():
                     st.error("!! ACCESS DENIED: INVALID CREDENTIALS !!")
                     st.info("💡 Hint: You can log in using your **Email Address** or your **Access ID**.")
                 
-                st.markdown("<div style='margin-bottom: 10px; text-align: center; font-size: 0.85em; color: var(--text-muted);'>Or continue with</div>", unsafe_allow_html=True)
-                
-                scol1, scol2, scol3 = st.columns(3)
-                with scol1: btn_google = st.button("🔴 Google", use_container_width=True)
-                with scol2: btn_apple = st.button("🍏 Apple", use_container_width=True)
-                with scol3: btn_github = st.button("🐙 GitHub", use_container_width=True)
-                
-                if btn_google or btn_apple or btn_github:
-                    provider = "Google" if btn_google else "Apple" if btn_apple else "GitHub"
-                    st.success(f"**{provider} Login Authenticated!** Accessing dashboard...")
-                    
-                    import time
-                    time.sleep(1) # Small delay for effect
-                    
-                    # Force login
-                    st.session_state["password_correct"] = True
-                    st.session_state["logged_in_user"] = f"{provider}_Guest"
-                    st.rerun()
-                
                 # Forgot Password Flow
                 if st.button("Forgot Password?", type="tertiary", use_container_width=True):
                     st.session_state.show_reset = not st.session_state.get('show_reset', False)
