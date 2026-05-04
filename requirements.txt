@@ -11,3 +11,4 @@ streamlit-geolocation>=0.0.10
 pytz
 streamlit-lottie
 extra-streamlit-components
+google-generativeai

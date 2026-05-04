@@ -26,6 +26,10 @@ from notifications import notify_admin_of_new_user, notify_user_of_registration
 from static_assistant import StaticModelAssistant
 from extra_streamlit_components import CookieManager
 
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 def fetch_recent_accidents(location_name):
     try:
         query = quote_plus(f"road accident {location_name} when:7d")
@@ -1161,6 +1165,11 @@ def main():
         st.markdown("---")
         st.header("💬 AI Data Assistant")
         
+        # User API Key Input
+        with st.expander("⚙️ Assistant Settings", expanded=False):
+            st.info("Unlock advanced AI capabilities by providing your Gemini API key.")
+            user_gemini_key = st.text_input("Gemini API Key:", type="password", key="gemini_api_key", help="Get your free API key from Google AI Studio")
+        
         # Initialize chat history
         if "messages" not in st.session_state:
             st.session_state.messages = []
@@ -1178,17 +1187,45 @@ def main():
             st.session_state.messages.append({"role": "user", "content": prompt})
 
         # --- AI RESPONSE GENERATOR ---
-        # OWN CUSTOM LOCAL DATA AGENT (STATIC NLP ASSISTANT)
         if prompt:
-            if "static_assistant" not in st.session_state:
-                st.session_state.static_assistant = StaticModelAssistant()
-                
+            bot_response = ""
+            
             try:
                 full_df = pd.read_csv(os.path.join(os.path.dirname(__file__), 'accident_data.csv'))
+                data_context = f"Here is a summary of the dataset: {full_df.describe().to_string()}"
             except Exception:
                 full_df = pd.DataFrame()
-                
-            bot_response = st.session_state.static_assistant.get_response(prompt, full_df)
+                data_context = ""
+
+            # Check if user provided a Gemini key
+            if user_gemini_key and genai is not None:
+                try:
+                    genai.configure(api_key=user_gemini_key)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    # Construct conversation history for Gemini
+                    history = ""
+                    for msg in st.session_state.messages[:-1]: # exclude the latest prompt
+                        role = "User" if msg["role"] == "user" else "AI"
+                        history += f"{role}: {msg['content']}\n"
+                    
+                    gemini_prompt = f"You are a helpful AI assistant for a road accident prediction application. Answer the user's latest query based on the conversation history and data context.\\n\\nData Context: {data_context}\\n\\nConversation History:\\n{history}\\nUser: {prompt}\\nAI:"
+                    
+                    response = model.generate_content(gemini_prompt)
+                    bot_response = response.text
+                except Exception as e:
+                    bot_response = f"⚠️ Gemini API Error: {str(e)}\\n\\nFalling back to local assistant..."
+                    
+            # Fallback to Static NLP Assistant if Gemini failed or no key provided
+            if not bot_response or "⚠️ Gemini API Error" in bot_response:
+                if "static_assistant" not in st.session_state:
+                    st.session_state.static_assistant = StaticModelAssistant()
+                    
+                static_response = st.session_state.static_assistant.get_response(prompt, full_df)
+                if bot_response:
+                    bot_response = bot_response + "\\n\\n" + static_response
+                else:
+                    bot_response = static_response
             
             # Display assistant response in chat message container
             with st.chat_message("assistant"):
