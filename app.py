@@ -268,7 +268,7 @@ login_styles = """
     }
 
     /* Primary Button */
-    div.stButton > button:first-child, .stFormSubmitButton > button {
+    div.stButton > button[kind="primary"], .stFormSubmitButton > button {
         background: var(--primary) !important;
         color: white !important;
         border: none !important;
@@ -282,14 +282,32 @@ login_styles = """
         margin-top: 1rem !important;
     }
 
-    div.stButton > button:hover, .stFormSubmitButton > button:hover {
+    div.stButton > button[kind="primary"]:hover, .stFormSubmitButton > button:hover {
         background: var(--primary-dark) !important;
         transform: translateY(-2px);
         box-shadow: 0 20px 25px -5px rgba(9, 132, 227, 0.5) !important;
     }
 
-    div.stButton > button:active, .stFormSubmitButton > button:active {
+    div.stButton > button[kind="primary"]:active, .stFormSubmitButton > button:active {
         transform: translateY(0);
+    }
+    
+    /* Secondary (Social) Buttons */
+    div.stButton > button[kind="secondary"] {
+        background: var(--glass-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        color: var(--text-light) !important;
+        border-radius: 0.75rem !important;
+        padding: 0.75rem !important;
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    div.stButton > button[kind="secondary"]:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border-color: var(--text-muted) !important;
+        transform: translateY(-2px);
     }
 
     /* Tabs Override */
@@ -429,13 +447,16 @@ def check_password():
                     st.error("!! ACCESS DENIED: INVALID CREDENTIALS !!")
                     st.info("💡 Hint: You can log in using your **Email Address** or your **Access ID**.")
                 
-                st.markdown("""
-                <div class="social-login" style="margin-bottom: 20px;">
-                    <button class="social-btn" onclick="alert('Google login is not yet connected to the backend!')"><i class="fab fa-google"></i></button>
-                    <button class="social-btn" onclick="alert('Apple login is not yet connected to the backend!')"><i class="fab fa-apple"></i></button>
-                    <button class="social-btn" onclick="alert('GitHub login is not yet connected to the backend!')"><i class="fab fa-github"></i></button>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown("<div style='margin-bottom: 10px; text-align: center; font-size: 0.85em; color: var(--text-muted);'>Or continue with</div>", unsafe_allow_html=True)
+                
+                scol1, scol2, scol3 = st.columns(3)
+                with scol1: btn_google = st.button("🔴 Google", use_container_width=True)
+                with scol2: btn_apple = st.button("🍏 Apple", use_container_width=True)
+                with scol3: btn_github = st.button("🐙 GitHub", use_container_width=True)
+                
+                if btn_google or btn_apple or btn_github:
+                    provider = "Google" if btn_google else "Apple" if btn_apple else "GitHub"
+                    st.info(f"**{provider} login simulated!** In production, this would redirect to {provider}'s OAuth page.")
                 
                 # Forgot Password Flow
                 if st.button("Forgot Password?", type="tertiary", use_container_width=True):
