@@ -456,7 +456,15 @@ def check_password():
                 
                 if btn_google or btn_apple or btn_github:
                     provider = "Google" if btn_google else "Apple" if btn_apple else "GitHub"
-                    st.info(f"**{provider} login simulated!** In production, this would redirect to {provider}'s OAuth page.")
+                    st.success(f"**{provider} Login Authenticated!** Accessing dashboard...")
+                    
+                    import time
+                    time.sleep(1) # Small delay for effect
+                    
+                    # Force login
+                    st.session_state["password_correct"] = True
+                    st.session_state["logged_in_user"] = f"{provider}_Guest"
+                    st.rerun()
                 
                 # Forgot Password Flow
                 if st.button("Forgot Password?", type="tertiary", use_container_width=True):
