@@ -403,15 +403,15 @@ def check_password():
         with col2:
             st.markdown("<div class='neon-login-container'>", unsafe_allow_html=True)
             
-            tab1, tab2 = st.tabs(["[ AUTHENTICATE ]", "[ REGISTER ]"])
+            tab1, tab2 = st.tabs(["Login", "Register"])
             
             with tab1:
                 st.markdown("<div style='padding-top: 30px;'>", unsafe_allow_html=True)
                 with st.form("login_form"):
-                    st.text_input("Access ID or Email", key="username", placeholder="user@mitigation.ai or johndoe")
-                    st.text_input("Security Key", type="password", key="password", placeholder="password")
+                    st.text_input("Login ID", key="username", placeholder="Enter your Login ID")
+                    st.text_input("Password", type="password", key="password", placeholder="••••••••")
                     remember_me = st.checkbox("Keep me signed in for 30 days", value=True)
-                    submit_login = st.form_submit_button("INITIALIZE SESSION", use_container_width=True)
+                    submit_login = st.form_submit_button("SIGN IN", use_container_width=True)
                 
                 if submit_login:
                     password_entered(st.session_state.username, st.session_state.password, remember_me)
@@ -423,9 +423,9 @@ def check_password():
                 
                 st.markdown("""
                 <div class="social-login">
-                    <button class="social-btn"><i class="fab fa-google"></i></button>
-                    <button class="social-btn"><i class="fab fa-apple"></i></button>
-                    <button class="social-btn"><i class="fab fa-github"></i></button>
+                    <button class="social-btn" onclick="alert('Google login is not yet connected to the backend!')"><i class="fab fa-google"></i></button>
+                    <button class="social-btn" onclick="alert('Apple login is not yet connected to the backend!')"><i class="fab fa-apple"></i></button>
+                    <button class="social-btn" onclick="alert('GitHub login is not yet connected to the backend!')"><i class="fab fa-github"></i></button>
                 </div>
                 <div class="footer-links">
                     <p style="margin-top: 1rem;"><a href="#" style="font-size: 0.8rem; font-weight: 400; color: var(--text-muted);">Forgot Password?</a></p>
@@ -445,20 +445,20 @@ def check_password():
                     st.success(f"ACCESS GRANTED: PROTOCOL INITIALIZED")
                     st.warning(f"⚠️ IMPORTANT: Use the ID below to log in, NOT your name or email.")
                     st.info(f"**YOUR ASSIGNED ACCESS ID:** `{st.session_state.new_login_id}`")
-                    if st.button("[ PROCEED TO LOGIN ]"):
+                    if st.button("PROCEED TO LOGIN"):
                         st.session_state.registration_success = False
                         st.rerun()
                 else:
                     with st.form("registration_form"):
                         r_col1, r_col2 = st.columns(2)
-                        with r_col1: first_name = st.text_input("First Name")
-                        with r_col2: last_name = st.text_input("Last Name")
+                        with r_col1: first_name = st.text_input("First Name", placeholder="John")
+                        with r_col2: last_name = st.text_input("Last Name", placeholder="Doe")
                         
-                        new_email = st.text_input("E-Mail Link")
-                        new_contact = st.text_input("Comm Channel")
-                        new_pass = st.text_input("Secure Key", type="password", placeholder="password")
+                        new_email = st.text_input("Email Address", placeholder="john@example.com")
+                        new_contact = st.text_input("Contact Number (Optional)", placeholder="Phone number")
+                        new_pass = st.text_input("Password", type="password", placeholder="••••••••")
                         
-                        submitted = st.form_submit_button("DEPLOY PROFILE", use_container_width=True)
+                        submitted = st.form_submit_button("REGISTER", use_container_width=True)
                     
                     if submitted:
                         if not first_name or not last_name or not new_email or not new_pass:
