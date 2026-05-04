@@ -116,7 +116,6 @@ def init_db():
         db.commit()
     except Exception:
         pass
-    
     # Create predictions table
     db.execute(f'''
         CREATE TABLE IF NOT EXISTS predictions (
@@ -126,6 +125,25 @@ def init_db():
             input_features TEXT NOT NULL,
             rf_prediction VARCHAR(255),
             svm_prediction VARCHAR(255),
+            FOREIGN KEY(username) REFERENCES users(username)
+        )
+    ''')
+    # Create sessions table for persistent login
+    db.execute(f'''
+        CREATE TABLE IF NOT EXISTS sessions (
+            token VARCHAR(255) PRIMARY KEY,
+            username VARCHAR(255) NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            FOREIGN KEY(username) REFERENCES users(username)
+        )
+    ''')
+    
+    # Create user_logs table for tracking access
+    db.execute(f'''
+        CREATE TABLE IF NOT EXISTS user_logs (
+            id INTEGER PRIMARY KEY {auto_increment},
+            username VARCHAR(255) NOT NULL,
+            login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(username) REFERENCES users(username)
         )
     ''')
@@ -142,7 +160,8 @@ def hash_password(password, salt=None):
     
     # create a hash
     key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
-    return key.hex(), salt
+    # return hex strings
+    return str(key.hex()), str(salt)
 
 def add_user(username, password, email=None, full_name=None, contact_number=None):
     db = get_db_connection()
@@ -156,6 +175,12 @@ def add_user(username, password, email=None, full_name=None, contact_number=None
             suggestions = [f"{username}_{random.randint(10,999)}", f"{username}Pro", f"{username}{random.randint(1,99)}"]
             return False, f"Username '{username}' already exists! Try: {', '.join(suggestions)}"
             
+        # Check if email exists
+        if email:
+            db.execute('SELECT username FROM users WHERE email = ?', (email.strip().lower(),))
+            if db.fetchone() is not None:
+                return False, "This email address is already registered!"
+
         hashed_pw, salt = hash_password(password)
         db.execute('INSERT INTO users (username, password_hash, salt, email, full_name, contact_number) VALUES (?, ?, ?, ?, ?, ?)',
                   (username, hashed_pw, salt, email, full_name, contact_number))
@@ -166,23 +191,26 @@ def add_user(username, password, email=None, full_name=None, contact_number=None
     finally:
         db.close()
 
-def verify_user(username, password):
+def verify_user(identifier, password):
     db = get_db_connection()
-    username = username.strip().lower() if username else ""
+    identifier = identifier.strip().lower() if identifier else ""
     
-    db.execute('SELECT password_hash, salt FROM users WHERE username = ?', (username,))
+    # Search by username OR email
+    db.execute('SELECT username, password_hash, salt FROM users WHERE username = ? OR email = ?', (identifier, identifier))
     user = db.fetchone()
     db.close()
     
     if user is None:
-        return False
+        return None # Return None if user not found
         
     stored_hash = user['password_hash']
     salt = user['salt']
     
-    attempt_hash, _ = hash_password(password, salt)
+    attempt_hash, _ = hash_password(password, str(salt))
     
-    return secrets.compare_digest(stored_hash, attempt_hash)
+    if secrets.compare_digest(str(stored_hash), str(attempt_hash)):
+        return user['username'] # Return the actual username on success
+    return None
 
 def reset_password(username, email, new_password):
     db = get_db_connection()
@@ -278,3 +306,61 @@ def get_all_predictions():
     db.close()
     
     return records
+def create_session_token(username, days=30):
+    db = get_db_connection()
+    token = secrets.token_urlsafe(32)
+    import datetime
+    expires_at = (datetime.datetime.now() + datetime.timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+    
+    try:
+        db.execute('INSERT INTO sessions (token, username, expires_at) VALUES (?, ?, ?)', (token, username, expires_at))
+        db.commit()
+        return token
+    except Exception as e:
+        print(f"Error creating session: {e}")
+        return None
+    finally:
+        db.close()
+
+def verify_session_token(token):
+    db = get_db_connection()
+    import datetime
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    try:
+        db.execute('SELECT username FROM sessions WHERE token = ? AND expires_at > ?', (token, now))
+        session = db.fetchone()
+        if session:
+            return session['username']
+        return None
+    except Exception as e:
+        print(f"Error verifying session: {e}")
+        return None
+    finally:
+        db.close()
+def log_user_login(username):
+    db = get_db_connection()
+    try:
+        db.execute('INSERT INTO user_logs (username) VALUES (?)', (username,))
+        db.commit()
+    except Exception as e:
+        print(f"Error logging login: {e}")
+    finally:
+        db.close()
+
+def get_all_user_logs():
+    db = get_db_connection()
+    db.execute('SELECT * FROM user_logs ORDER BY login_time DESC')
+    records = db.fetchall()
+    db.close()
+    return records
+
+def delete_session_token(token):
+    db = get_db_connection()
+    try:
+        db.execute('DELETE FROM sessions WHERE token = ?', (token,))
+        db.commit()
+    except Exception as e:
+        print(f"Error deleting session: {e}")
+    finally:
+        db.close()

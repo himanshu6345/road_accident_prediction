@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Road Accident Prediction</title>
+    <meta name="description" content="Secure login to the Road Accident Prediction and Analytics Platform.">
+    <link rel="stylesheet" href="login_styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="bg-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+    </div>
+
+    <div class="login-container">
+        <!-- Login Form -->
+        <div id="loginSection" class="form-container active">
+            <div class="header">
+                <h1>Welcome Back</h1>
+                <p>Predicting risks, saving lives.</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Login ID</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="username" name="username" placeholder="Enter your Login ID" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="password" name="password" placeholder="••••••••" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">SIGN IN</button>
+            </form>
+
+            <div class="social-login">
+                <button class="social-btn"><i class="fab fa-google"></i></button>
+                <button class="social-btn"><i class="fab fa-apple"></i></button>
+                <button class="social-btn"><i class="fab fa-github"></i></button>
+            </div>
+
+            <div class="footer">
+                <p>Don't have an account? <a href="#" id="toRegister">Register here</a></p>
+                <p style="margin-top: 1rem;"><a href="#" style="font-size: 0.8rem; font-weight: 400; color: var(--text-muted);">Forgot Password?</a></p>
+            </div>
+        </div>
+
+        <!-- Register Form -->
+        <div id="registerSection" class="form-container hidden">
+            <div class="header">
+                <h1>Create Account</h1>
+                <p>Join the safety revolution.</p>
+            </div>
+
+            <form id="registerForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" id="firstName" placeholder="John" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Last Name</label>
+                        <input type="text" id="lastName" placeholder="Doe" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="regEmail">Email Address</label>
+                    <input type="email" id="regEmail" placeholder="john@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="regPassword">Password</label>
+                    <input type="password" id="regPassword" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn-submit">REGISTER</button>
+            </form>
+
+            <div class="footer">
+                <p>Already have an account? <a href="#" id="toLogin">Sign In here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const loginSection = document.getElementById('loginSection');
+        const registerSection = document.getElementById('registerSection');
+        const toRegister = document.getElementById('toRegister');
+        const toLogin = document.getElementById('toLogin');
+
+        toRegister.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginSection.classList.remove('active');
+            loginSection.classList.add('hidden');
+            setTimeout(() => {
+                registerSection.classList.remove('hidden');
+                registerSection.classList.add('active');
+            }, 300);
+        });
+
+        toLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerSection.classList.remove('active');
+            registerSection.classList.add('hidden');
+            setTimeout(() => {
+                loginSection.classList.remove('hidden');
+                loginSection.classList.add('active');
+            }, 300);
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('.btn-submit');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...';
+            btn.disabled = true;
+            setTimeout(() => {
+                alert('Login system ready.');
+                btn.innerHTML = 'SIGN IN';
+                btn.disabled = false;
+            }, 1500);
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('.btn-submit');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            btn.disabled = true;
+            setTimeout(() => {
+                alert('Registration successful! You can now sign in.');
+                toLogin.click();
+                btn.innerHTML = 'REGISTER';
+                btn.disabled = false;
+            }, 1500);
+        });
+    </script>
+</body>
+</html>
