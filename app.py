@@ -406,15 +406,34 @@ def check_password():
                     st.info("💡 Hint: You can log in using your **Email Address** or your **Access ID**.")
                 
                 st.markdown("""
-                <div class="social-login">
+                <div class="social-login" style="margin-bottom: 20px;">
                     <button class="social-btn" onclick="alert('Google login is not yet connected to the backend!')"><i class="fab fa-google"></i></button>
                     <button class="social-btn" onclick="alert('Apple login is not yet connected to the backend!')"><i class="fab fa-apple"></i></button>
                     <button class="social-btn" onclick="alert('GitHub login is not yet connected to the backend!')"><i class="fab fa-github"></i></button>
                 </div>
-                <div class="footer-links">
-                    <p style="margin-top: 1rem;"><a href="#" style="font-size: 0.8rem; font-weight: 400; color: var(--text-muted);">Forgot Password?</a></p>
-                </div>
                 """, unsafe_allow_html=True)
+                
+                # Forgot Password Flow
+                if st.button("Forgot Password?", type="tertiary", use_container_width=True):
+                    st.session_state.show_reset = not st.session_state.get('show_reset', False)
+                
+                if st.session_state.get('show_reset', False):
+                    with st.form("reset_password_form"):
+                        st.markdown("<p style='text-align: center; color: var(--text-muted);'>Reset Your Password</p>", unsafe_allow_html=True)
+                        reset_user = st.text_input("Login ID", placeholder="Your username")
+                        reset_email = st.text_input("Email Address", placeholder="john@example.com")
+                        reset_pass = st.text_input("New Password", type="password", placeholder="••••••••")
+                        
+                        if st.form_submit_button("RESET PASSWORD", use_container_width=True):
+                            if not reset_user or not reset_email or not reset_pass:
+                                st.error("Please fill in all fields.")
+                            else:
+                                success, msg = reset_password(reset_user, reset_email, reset_pass)
+                                if success:
+                                    st.success("Password reset successful! You may now login.")
+                                else:
+                                    st.error(f"Reset Failed: {msg}")
+
                 st.markdown("</div>", unsafe_allow_html=True)
                                 
             with tab2:
