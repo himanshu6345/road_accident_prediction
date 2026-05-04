@@ -455,7 +455,13 @@ def check_password():
                 if st.button("Forgot Password?", type="tertiary", use_container_width=True):
                     st.session_state.show_reset = not st.session_state.get('show_reset', False)
                 
-                if st.session_state.get('show_reset', False):
+                if st.session_state.get('password_reset_success', False):
+                    st.success("✅ Password reset successfully! You may now login.")
+                    if st.button("Close Message", key="close_reset_success"):
+                        st.session_state.password_reset_success = False
+                        st.rerun()
+
+                if st.session_state.get('show_reset', False) and not st.session_state.get('password_reset_success', False):
                     with st.form("reset_password_form"):
                         st.markdown("<p style='text-align: center; color: var(--text-muted);'>Reset Your Password</p>", unsafe_allow_html=True)
                         reset_user = st.text_input("Login ID", placeholder="Your username")
@@ -468,7 +474,9 @@ def check_password():
                             else:
                                 success, msg = reset_password(reset_user, reset_email, reset_pass)
                                 if success:
-                                    st.success("Password reset successful! You may now login.")
+                                    st.session_state.password_reset_success = True
+                                    st.session_state.show_reset = False
+                                    st.rerun()
                                 else:
                                     st.error(f"Reset Failed: {msg}")
 
