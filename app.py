@@ -220,17 +220,26 @@ login_styles = """
     }
     
     /* Input Styling */
-    .stTextInput input {
+    [data-baseweb="input"] {
         background: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid var(--glass-border) !important;
-        color: white !important;
         border-radius: 0.75rem !important;
-        padding: 0.8rem 1rem !important;
-        font-size: 0.95rem !important;
         transition: all 0.3s ease !important;
     }
+    
+    [data-baseweb="base-input"] {
+        background: transparent !important;
+    }
 
-    .stTextInput input:focus {
+    .stTextInput input {
+        background: transparent !important;
+        color: white !important;
+        padding: 0.8rem 1rem !important;
+        font-size: 0.95rem !important;
+        -webkit-text-fill-color: white !important;
+    }
+
+    [data-baseweb="input"]:focus-within {
         border-color: var(--primary) !important;
         background: rgba(255, 255, 255, 0.1) !important;
         box-shadow: 0 0 0 4px rgba(9, 132, 227, 0.2) !important;
