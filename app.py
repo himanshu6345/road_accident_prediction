@@ -236,6 +236,21 @@ login_styles = """
         box-shadow: 0 0 0 4px rgba(9, 132, 227, 0.2) !important;
     }
 
+    .stTextInput input::placeholder {
+        color: rgba(255, 255, 255, 0.5) !important;
+        opacity: 1 !important;
+    }
+
+    /* Fix Browser Autofill Visibility */
+    .stTextInput input:-webkit-autofill,
+    .stTextInput input:-webkit-autofill:hover, 
+    .stTextInput input:-webkit-autofill:focus, 
+    .stTextInput input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px #1e293b inset !important;
+        -webkit-text-fill-color: white !important;
+        transition: background-color 5000s ease-in-out 0s;
+    }
+
     .stTextInput label {
         color: var(--text-light) !important;
         font-weight: 600 !important;
