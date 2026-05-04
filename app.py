@@ -21,9 +21,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.impute import SimpleImputer
 import plotly.express as px
-from database import init_db, add_user, verify_user, reset_password, log_prediction, get_predictions, get_all_users, get_all_predictions
+from database import init_db, add_user, verify_user, reset_password, log_prediction, get_predictions, get_all_users, get_all_predictions, create_session_token, verify_session_token, delete_session_token, log_user_login, get_all_user_logs
 from notifications import notify_admin_of_new_user, notify_user_of_registration
 from static_assistant import StaticModelAssistant
+from extra_streamlit_components import CookieManager
 
 def fetch_recent_accidents(location_name):
     try:
@@ -98,16 +99,23 @@ def fetch_live_data(location_name=None, lat=None, lon=None):
                 state = geo_resp['results'][0].get('admin1', 'Delhi')
                 city = geo_resp['results'][0].get('name', 'New Delhi')
         
-        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,weather_code"
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,weather_code,precipitation"
         weather_resp = requests.get(weather_url, timeout=5).json()
         current = weather_resp.get('current', {})
         w_code = current.get('weather_code', 0)
         temp = current.get('temperature_2m', 0)
+        precip = current.get('precipitation', 0)
         
-        if w_code in [0, 1, 2, 3]: weather = 'Clear'
+        # Enhanced Logic: Prioritize precipitation for Rain/Snow
+        if precip > 0:
+            if temp < 0: weather = 'Snow'
+            else: weather = 'Rain'
+        elif w_code in [0, 1]: weather = 'Clear'
+        elif w_code in [2, 3]: weather = 'Cloudy'
         elif w_code in [45, 48]: weather = 'Fog'
+        elif w_code in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99]: weather = 'Rain'
         elif w_code in [71, 73, 75, 77, 85, 86]: weather = 'Snow'
-        else: weather = 'Rain'
+        else: weather = 'Clear' # Default
         
         current_hour = datetime.datetime.now().hour
         if 5 <= current_hour < 12: time_of_day = 'Morning'
@@ -122,6 +130,7 @@ def fetch_live_data(location_name=None, lat=None, lon=None):
             'Time_of_Day': time_of_day,
             'Road_Condition': road_cond,
             'Temperature': temp,
+            'Precipitation': precip,
             'Lat': lat,
             'Lon': lon,
             'State': state,
@@ -142,152 +151,199 @@ st.set_page_config(
 )
 
 # --- CSS FOR STYLING ---
-st.markdown("""<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+# --- CSS FOR STYLING ---
+login_styles = """
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
     
+    :root {
+        --primary: #0984e3;
+        --primary-dark: #074da1;
+        --accent: #6c5ce7;
+        --bg-dark: #0f172a;
+        --text-light: #f8fafc;
+        --text-muted: #94a3b8;
+        --glass-bg: rgba(255, 255, 255, 0.05);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --glass-blur: 12px;
+    }
+
     .stApp { 
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
-        font-family: 'Inter', sans-serif;
+        background: var(--bg-dark); 
+        font-family: 'Inter', -apple-system, sans-serif;
     }
     
-    h1 { 
-        font-weight: 800; 
-        color: #1a1a1a; 
-        text-align: center; 
-        margin-bottom: 5px !important; 
-        letter-spacing: -1px;
-    }
-    
-    .subtitle { 
-        text-align: center; 
-        color: #4a4a4a; 
-        font-size: 1.2em; 
-        margin-bottom: 40px; 
-        font-weight: 400;
-    }
-    
-    .stMarkdown p, .stMarkdown li {
-        color: #2d3436;
-        font-size: 1.05em;
-    }
-    
-    .prediction-card { 
-        background-color: white; 
-        padding: 35px; 
-        border-radius: 20px; 
-        box-shadow: 0 15px 35px rgba(0,0,0,0.08); 
-        text-align: center; 
-        margin-top: 30px; 
-        border: 1px solid #f1f3f5;
-    }
-    
-    .pred-value { 
-        font-size: 2.5em; 
-        font-weight: 800; 
-        color: #0984e3; 
-    }
-    
-    /* Make labels more visible */
-    .stSelectbox label, .stTextInput label, .stNumberInput label {
-        color: #000000 !important;
-        font-weight: 800 !important;
-        font-size: 1.15em !important;
-    }
-
-    /* Make the input boxes themselves extremely visible with thick borders */
-    .stTextInput input, .stSelectbox [data-baseweb="select"], .stNumberInput input, .stTextArea textarea {
-        border: 3px solid #2d3436 !important;
-        border-radius: 12px !important;
-        padding: 12px !important;
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        font-size: 1.1em !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease;
-    }
-
-    /* Highlight box when user clicks on it */
-    .stTextInput input:focus, .stSelectbox [data-baseweb="select"]:focus, .stNumberInput input:focus {
-        border-color: #0984e3 !important;
-        box-shadow: 0 0 0 4px rgba(9, 132, 227, 0.3) !important;
-    }
-
-    /* Make placeholders clearly visible but hide them on focus */
-    ::placeholder {
-        color: #adb5bd !important;
-        opacity: 1 !important;
-        transition: color 0.2s ease, opacity 0.2s ease;
-    }
-    
-    /* Strongest possible way to hide placeholder on click/focus */
-    input:focus::placeholder, textarea:focus::placeholder {
-        color: transparent !important;
-        opacity: 0 !important;
-    }
-    
-    /* Browser specific overrides for focus */
-    input:focus::-webkit-input-placeholder { color: transparent !important; }
-    input:focus:-moz-placeholder { color: transparent !important; }
-    input:focus::-moz-placeholder { color: transparent !important; }
-    input:focus:-ms-input-placeholder { color: transparent !important; }
-
-    /* Improve Form appearance and hide 'Press Enter to submit' hint */
-    [data-testid="stForm"] {
-        background-color: #ffffff !important;
-        padding: 40px !important;
-        border-radius: 25px !important;
-        border: 3px solid #dfe6e9 !important;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.1) !important;
-    }
-    
-    /* Hide the 'Press Enter to submit' hint (Ultimate Global Fix) */
-    [data-testid="stForm"] small, 
-    .stFormSubmitButton small, 
-    div[data-testid="stFormSubmitButton"] p,
-    div[data-testid="stForm"] [data-testid="stMarkdownContainer"] p:only-child {
+    /* Hide Streamlit UI */
+    [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"] {
         display: none !important;
-        visibility: hidden !important;
-        height: 0px !important;
-        opacity: 0 !important;
-        font-size: 0px !important;
-        margin: 0 !important;
-        padding: 0 !important;
     }
 
-    /* Mobile Responsiveness for inputs and placeholders */
-    @media (max-width: 640px) {
-        .stTextInput input, .stSelectbox [data-baseweb="select"], .stNumberInput input {
-            font-size: 14px !important;
-            padding: 8px !important;
-        }
-        ::placeholder {
-            font-size: 13px !important;
-        }
-        h1 {
-            font-size: 2em !important;
-        }
-        .subtitle {
-            font-size: 1em !important;
-        }
-    /* Make primary buttons extremely visible */
-    div.stButton > button:first-child, .stFormSubmitButton > button {
-        background-color: #0984e3 !important;
-        color: white !important;
-        font-weight: 800 !important;
-        font-size: 1.2em !important;
-        padding: 15px !important;
-        border-radius: 12px !important;
-        border: none !important;
-        box-shadow: 0 4px 15px rgba(9, 132, 227, 0.3) !important;
-        transition: all 0.3s ease;
+    /* Background Shapes */
+    .bg-shapes {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: -1;
+        background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+        overflow: hidden;
+    }
+    .shape {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.4;
+    }
+    .shape-1 {
+        width: 400px; height: 400px; background: var(--primary); top: -100px; right: -100px;
+    }
+    .shape-2 {
+        width: 350px; height: 350px; background: var(--accent); bottom: -50px; left: -50px;
+    }
+
+    /* Glassmorphism Container */
+    .neon-login-container {
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur));
+        -webkit-backdrop-filter: blur(var(--glass-blur));
+        border: 1px solid var(--glass-border);
+        padding: 3rem;
+        border-radius: 2rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        max-width: 450px;
+        margin: 60px auto;
+        position: relative;
+    }
+
+    .login-header { text-align: center; margin-bottom: 2.5rem; }
+    .login-header h1 { 
+        color: var(--text-light) !important;
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.025em;
+    }
+    .login-header p { 
+        color: var(--text-muted);
+        font-size: 1rem;
+        margin: 0;
+        padding: 0;
     }
     
-    div.stButton > button:hover, .stFormSubmitButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(9, 132, 227, 0.4) !important;
-        background-color: #074da1 !important;
+    /* Input Styling */
+    .stTextInput input {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid var(--glass-border) !important;
+        color: white !important;
+        border-radius: 0.75rem !important;
+        padding: 0.8rem 1rem !important;
+        font-size: 0.95rem !important;
+        transition: all 0.3s ease !important;
     }
-</style>""", unsafe_allow_html=True)
+
+    .stTextInput input:focus {
+        border-color: var(--primary) !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 0 0 4px rgba(9, 132, 227, 0.2) !important;
+    }
+
+    .stTextInput label {
+        color: var(--text-light) !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Primary Button */
+    div.stButton > button:first-child, .stFormSubmitButton > button {
+        background: var(--primary) !important;
+        color: white !important;
+        border: none !important;
+        font-weight: 700 !important;
+        border-radius: 0.75rem !important;
+        padding: 1rem !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 10px 15px -3px rgba(9, 132, 227, 0.4) !important;
+        width: 100%;
+        margin-top: 1rem !important;
+    }
+
+    div.stButton > button:hover, .stFormSubmitButton > button:hover {
+        background: var(--primary-dark) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 20px 25px -5px rgba(9, 132, 227, 0.5) !important;
+    }
+
+    div.stButton > button:active, .stFormSubmitButton > button:active {
+        transform: translateY(0);
+    }
+
+    /* Tabs Override */
+    .stTabs [data-baseweb="tab-list"] { 
+        background: transparent !important; 
+        gap: 10px; 
+        border-bottom: 1px solid var(--glass-border) !important;
+        padding-bottom: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background: transparent !important;
+        color: var(--text-muted) !important;
+        border: none !important;
+        font-weight: 600 !important;
+        padding: 8px 16px !important;
+        border-radius: 0.5rem !important;
+        transition: all 0.3s ease !important;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: var(--text-light) !important;
+    }
+    .stTabs [aria-selected="true"] {
+        color: white !important;
+        background: var(--glass-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+    }
+
+    [data-testid="stForm"] { background: transparent !important; border: none !important; padding: 0 !important; }
+    
+    .footer-links { text-align: center; margin-top: 2rem; font-size: 0.9rem; color: var(--text-muted); }
+    .footer-links a { color: var(--primary); text-decoration: none; font-weight: 600; }
+    .footer-links a:hover { text-decoration: underline; }
+    
+    .social-login { display: flex; gap: 1rem; margin-top: 1.5rem; }
+    .social-btn {
+        flex: 1; display: flex; align-items: center; justify-content: center;
+        padding: 0.75rem; background: var(--glass-bg); border: 1px solid var(--glass-border);
+        border-radius: 0.75rem; color: var(--text-light); cursor: pointer; transition: all 0.3s ease;
+    }
+    .social-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--text-muted); }
+</style>
+<div class="bg-shapes">
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+</div>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+"""
+
+dashboard_styles = """
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+    .stApp { background: #0f172a; font-family: 'Poppins', sans-serif; color: white; }
+    h1 { font-weight: 800; color: #ffffff !important; }
+    .prediction-card { 
+        background: rgba(30, 41, 59, 0.7); 
+        padding: 30px; 
+        border-radius: 20px; 
+        border: 1px solid rgba(0, 212, 255, 0.1);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+    }
+    .stSelectbox label, .stTextInput label { color: #94a3b8 !important; }
+</style>
+"""
+
+if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
+    st.markdown(login_styles, unsafe_allow_html=True)
+else:
+    st.markdown(dashboard_styles, unsafe_allow_html=True)
 
 
 
@@ -301,165 +357,138 @@ def load_lottieurl(url):
 
 def check_password():
     """Returns `True` if the user had a correct password."""
-
-    def password_entered(username_val, password_val):
-        # Normalize username to lowercase and trim spaces
+    
+    # Initialize Cookie Manager
+    cookie_manager = CookieManager()
+    
+    def password_entered(username_val, password_val, remember_me=False):
+        # Normalize username/email to lowercase and trim spaces
         username_val = username_val.strip().lower() if username_val else ""
-        if verify_user(username_val, password_val):
+        actual_username = verify_user(username_val, password_val)
+        if actual_username:
             st.session_state["password_correct"] = True
-            st.session_state["logged_in_user"] = username_val
+            st.session_state["logged_in_user"] = actual_username
+            log_user_login(actual_username)
+            
+            if remember_me:
+                token = create_session_token(actual_username)
+                if token:
+                    cookie_manager.set("session_token", token, expires_at=datetime.datetime.now() + datetime.timedelta(days=30))
         else:
             st.session_state["password_correct"] = False
 
+    # Check for existing session token in cookies (if not just logged out)
+    if not st.session_state.get("logout_requested"):
+        if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
+            token = cookie_manager.get("session_token")
+            if token:
+                username = verify_session_token(token)
+                if username:
+                    st.session_state["password_correct"] = True
+                    st.session_state["logged_in_user"] = username
+                    st.rerun()
+    else:
+        # Clear the logout flag so future visits will auto-login normally
+        st.session_state["logout_requested"] = False
+
     if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
-        # Dynamic Greeting based on India Time (Kolkata)
-        ist = pytz.timezone('Asia/Kolkata')
-        india_time = datetime.datetime.now(ist)
-        hour = india_time.hour
-        
-        if hour < 12: greeting = "Good Morning ☀️"
-        elif hour < 18: greeting = "Good Afternoon 🌤️"
-        else: greeting = "Good Evening 🌙"
-        
-        st.markdown(f"""
-        <div style='text-align: center; margin-top: 30px; animation: fadeIn 1s ease-in;'>
-            <h1 style='font-size: 3.5em; margin-bottom: 0;'>{greeting}</h1>
-            <p style='font-size: 1.3em; color: #636e72;'>Safety first. Predict risks, save lives.</p>
+        st.markdown("""
+        <div class="login-header">
+            <h1>Welcome Back</h1>
+            <p>Predicting risks, saving lives.</p>
         </div>
-        
-        <style>
-            @keyframes fadeIn {{
-                from {{ opacity: 0; transform: translateY(20px); }}
-                to {{ opacity: 1; transform: translateY(0); }}
-            }}
-            .stTabs [data-baseweb="tab-list"] {{
-                gap: 20px;
-                justify-content: center;
-            }}
-            .stTabs [data-baseweb="tab"] {{
-                background-color: #f1f3f5;
-                border-radius: 12px 12px 0 0;
-                padding: 12px 30px;
-                color: #000000;
-                font-weight: 800 !important;
-                font-size: 1.25em !important;
-                transition: all 0.3s;
-            }}
-            .stTabs [aria-selected="true"] {{
-                background-color: #0984e3 !important;
-                color: white !important;
-            }}
-        </style>
         """, unsafe_allow_html=True)
-        
-        # Add a Lottie Animation for interactivity
-        lottie_traffic = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_5njpXm.json")
-        if lottie_traffic:
-            st_lottie(lottie_traffic, height=200, key="traffic_lottie")
         
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
-            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-            tab1, tab2 = st.tabs(["🔑 Sign In", "📝 Register"])
+            st.markdown("<div class='neon-login-container'>", unsafe_allow_html=True)
+            
+            tab1, tab2 = st.tabs(["[ AUTHENTICATE ]", "[ REGISTER ]"])
             
             with tab1:
-                st.markdown("<div style='padding: 10px;'>", unsafe_allow_html=True)
+                st.markdown("<div style='padding-top: 30px;'>", unsafe_allow_html=True)
                 with st.form("login_form"):
-                    st.markdown("### 🔒 Secure Login")
-                    st.text_input("👤 Enter your Login ID", key="username", placeholder="Sign In")
-                    st.text_input("🔑 Enter your Password", type="password", key="password", placeholder="Sign In")
-                    submit_login = st.form_submit_button("SIGN IN", use_container_width=True)
+                    st.text_input("Access ID or Email", key="username", placeholder="user@mitigation.ai or johndoe")
+                    st.text_input("Security Key", type="password", key="password", placeholder="password")
+                    remember_me = st.checkbox("Keep me signed in for 30 days", value=True)
+                    submit_login = st.form_submit_button("INITIALIZE SESSION", use_container_width=True)
                 
                 if submit_login:
-                    password_entered(st.session_state.username, st.session_state.password)
+                    password_entered(st.session_state.username, st.session_state.password, remember_me)
                     st.rerun()
                 
                 if "password_correct" in st.session_state and not st.session_state["password_correct"]:
-                    st.error("😕 Username or password incorrect")
-                    st.info("💡 **Tip:** If you just registered on your local computer, you must register again on this Cloud URL, as they use separate databases.")
-                    
-                with st.expander("❓ Forgot Password?"):
-                    if st.session_state.get('password_reset_success', False):
-                        st.success("✅ Password changed successfully!")
-                        st.info("You can now sign in with your new password.")
-                        if st.button("↩️ Back to Sign In", key="back_to_signin"):
-                            st.session_state.password_reset_success = False
-                            st.rerun()
-                    else:
-                        st.write("Reset your password by verifying your registered email.")
-                        with st.form("reset_form"):
-                            reset_user = st.text_input("👤 Username", key="reset_username", placeholder="Your Login ID")
-                            reset_email = st.text_input("📧 Registered Email", key="reset_email", placeholder="email@example.com")
-                            reset_new_pass = st.text_input("🆕 New Password", type="password", key="reset_new_password", placeholder="Choose a strong password")
-                            submit_reset = st.form_submit_button("Reset My Password", use_container_width=True)
-                        
-                        if submit_reset:
-                            if reset_user == "" or reset_email == "" or reset_new_pass == "":
-                                st.error("⚠️ All fields must be filled.")
-                            else:
-                                success, message = reset_password(reset_user, reset_email, reset_new_pass)
-                                if success:
-                                    st.session_state.password_reset_success = True
-                                    st.rerun()
-                                else:
-                                    st.error(f"⚠️ {message}")
+                    st.error("!! ACCESS DENIED: INVALID CREDENTIALS !!")
+                    st.info("💡 Hint: You can log in using your **Email Address** or your **Access ID**.")
+                
+                st.markdown("""
+                <div class="social-login">
+                    <button class="social-btn"><i class="fab fa-google"></i></button>
+                    <button class="social-btn"><i class="fab fa-apple"></i></button>
+                    <button class="social-btn"><i class="fab fa-github"></i></button>
+                </div>
+                <div class="footer-links">
+                    <p style="margin-top: 1rem;"><a href="#" style="font-size: 0.8rem; font-weight: 400; color: var(--text-muted);">Forgot Password?</a></p>
+                </div>
+                """, unsafe_allow_html=True)
                 st.markdown("</div>", unsafe_allow_html=True)
                                 
             with tab2:
-                st.markdown("<div style='padding: 10px;'>", unsafe_allow_html=True)
+                st.markdown("<div style='padding-top: 10px;'>", unsafe_allow_html=True)
+                st.markdown("""
+                <div class="login-header" style="margin-bottom: 20px;">
+                    <h1>Create Account</h1>
+                    <p>Join the safety revolution.</p>
+                </div>
+                """, unsafe_allow_html=True)
                 if st.session_state.get('registration_success', False):
-                    st.success(f"🎉 Account created successfully!")
-                    st.info(f"**IMPORTANT: Your generated Login ID is:** `{st.session_state.new_login_id}`\n\nPlease switch to the Sign In tab and use this Login ID to sign in.")
-                    if st.button("⬅️ Register Another Account"):
+                    st.success(f"ACCESS GRANTED: PROTOCOL INITIALIZED")
+                    st.warning(f"⚠️ IMPORTANT: Use the ID below to log in, NOT your name or email.")
+                    st.info(f"**YOUR ASSIGNED ACCESS ID:** `{st.session_state.new_login_id}`")
+                    if st.button("[ PROCEED TO LOGIN ]"):
                         st.session_state.registration_success = False
                         st.rerun()
                 else:
-                    st.markdown("<h3 style='color: #000000; font-weight: 800;'>📝 New Registration</h3>", unsafe_allow_html=True)
                     with st.form("registration_form"):
                         r_col1, r_col2 = st.columns(2)
-                        with r_col1:
-                            first_name = st.text_input("👤 Enter First Name", placeholder="e.g. Himanshu")
-                        with r_col2:
-                            last_name = st.text_input("👤 Enter Last Name", placeholder="e.g. Prajapati")
+                        with r_col1: first_name = st.text_input("First Name")
+                        with r_col2: last_name = st.text_input("Last Name")
                         
-                        new_email = st.text_input("📧 Enter Email Address", placeholder="your@email.com")
-                        new_contact = st.text_input("📱 Enter Contact Number", placeholder="+91 XXXXX XXXXX")
-                        new_pass = st.text_input("🔐 Create a Strong Password", type="password", placeholder="Register")
+                        new_email = st.text_input("E-Mail Link")
+                        new_contact = st.text_input("Comm Channel")
+                        new_pass = st.text_input("Secure Key", type="password", placeholder="password")
                         
-                        submitted = st.form_submit_button("REGISTER", use_container_width=True)
+                        submitted = st.form_submit_button("DEPLOY PROFILE", use_container_width=True)
                     
                     if submitted:
                         if not first_name or not last_name or not new_email or not new_pass:
-                            st.error("⚠️ All required fields must be filled.")
+                            st.error("!! ERROR: INCOMPLETE PARAMETERS !!")
                         else:
                             base_username = f"{first_name.strip().lower()}{last_name.strip().lower()}"
                             import random
                             new_user = base_username
-                            
-                            # Try to generate a unique username
                             for _ in range(10):
-                                success, message = add_user(
-                                    username=new_user, 
-                                    password=new_pass, 
-                                    email=new_email,
-                                    full_name=f"{first_name.strip()} {last_name.strip()}",
-                                    contact_number=new_contact
-                                )
+                                success, message = add_user(username=new_user, password=new_pass, email=new_email, 
+                                                           full_name=f"{first_name.strip()} {last_name.strip()}", 
+                                                           contact_number=new_contact)
                                 if success:
                                     notify_admin_of_new_user(new_user, new_email)
                                     notify_user_of_registration(new_email, new_contact, first_name.strip(), new_user)
-                                    
                                     st.session_state.registration_success = True
                                     st.session_state.new_login_id = new_user
                                     st.rerun()
                                 else:
                                     new_user = f"{base_username}{random.randint(10, 9999)}"
-                            else:
-                                st.error("⚠️ Could not generate a unique username. Please try again.")
                 st.markdown("</div>", unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="footer-links" style="margin-top: 40px;">
+                <p>New Operator? <a href="#">[ Request Protocol ]</a></p>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
         return False
     else:
-        # Password correct.
         return True
 
 # --- DYNAMIC TRAINING FUNCTION ---
@@ -595,8 +624,17 @@ def main():
     st.sidebar.header("🚪 Session")
     st.sidebar.write(f"Logged in as: **{st.session_state.get('logged_in_user', 'User')}**")
     if st.sidebar.button("Logout", key="logout_btn"):
-        for key in st.session_state.keys():
+        cm = CookieManager()
+        token = cm.get("session_token")
+        if token:
+            delete_session_token(token)
+            cm.delete("session_token")
+            
+        for key in list(st.session_state.keys()):
             del st.session_state[key]
+        
+        # Set logout flag and rerun
+        st.session_state["logout_requested"] = True
         st.rerun()
         
     with st.sidebar.expander("📜 View Prediction History"):
@@ -853,7 +891,8 @@ def main():
                                 display_name = f"{live_data['City']}, {live_data['State']}"
                             
                             st.success(f"📍 **Location Identified:** {display_name}")
-                            st.info(f"✅ Data fetched! Weather: {live_data['Weather_Condition']} ({live_data['Temperature']}°C) | Time: {live_data['Time_of_Day']}")
+                            precip_str = f" | Rain: {live_data['Precipitation']}mm" if live_data['Precipitation'] > 0 else ""
+                            st.info(f"✅ Data fetched! Weather: {live_data['Weather_Condition']} ({live_data['Temperature']}°C){precip_str} | Time: {live_data['Time_of_Day']}")
                     
                         st.write("#### 🗺️ Live Location Map")
                         map_df = pd.DataFrame({'lat': [live_data['Lat']], 'lon': [live_data['Lon']]})
@@ -883,7 +922,7 @@ def main():
                         final_road = 'Highway' if (free_speed and free_speed >= 65) else 'City Street'
 
                         active_user_inputs = {
-                            'Weather_Condition': live_data['Weather_Condition'],
+                            'Weather_Condition': 'Clear' if live_data['Weather_Condition'] == 'Cloudy' else live_data['Weather_Condition'],
                             'Road_Type': final_road,
                             'Road_Condition': live_data['Road_Condition'],
                             'Speed_Limit': final_speed,
@@ -1062,6 +1101,14 @@ def main():
                     st.dataframe(df_users, use_container_width=True)
                 else:
                     st.info("No users found.")
+                
+                st.write("### 🕒 Recent User Access Logs")
+                user_logs = get_all_user_logs()
+                if user_logs:
+                    df_logs = pd.DataFrame(user_logs)
+                    st.dataframe(df_logs, use_container_width=True)
+                else:
+                    st.info("No login logs found.")
                     
                 st.write("### System Prediction History")
                 all_preds = get_all_predictions()
