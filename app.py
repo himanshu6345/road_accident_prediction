@@ -169,51 +169,42 @@ login_styles = """
     }
 
     .stApp { 
-        background: var(--bg-dark); 
+        background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
         font-family: 'Inter', -apple-system, sans-serif;
     }
     
+    .stApp::before {
+        content: ''; position: fixed; width: 400px; height: 400px;
+        background: var(--primary); top: -100px; right: -100px;
+        border-radius: 50%; filter: blur(80px); opacity: 0.4; z-index: 0;
+        pointer-events: none;
+    }
+    
+    .stApp::after {
+        content: ''; position: fixed; width: 350px; height: 350px;
+        background: var(--accent); bottom: -50px; left: -50px;
+        border-radius: 50%; filter: blur(80px); opacity: 0.4; z-index: 0;
+        pointer-events: none;
+    }
+
     /* Hide Streamlit UI */
     [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"] {
         display: none !important;
     }
 
-    /* Background Shapes */
-    .bg-shapes {
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        z-index: -1;
-        background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
-        overflow: hidden;
+    /* Glassmorphism Container applied to the middle column */
+    [data-testid="column"]:nth-child(2) {
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(var(--glass-blur)) !important;
+        -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+        border: 1px solid var(--glass-border) !important;
+        padding: 3rem !important;
+        border-radius: 2rem !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+        margin-top: 50px;
+        z-index: 10;
     }
-    .shape {
-        position: absolute;
-        border-radius: 50%;
-        filter: blur(80px);
-        opacity: 0.4;
-    }
-    .shape-1 {
-        width: 400px; height: 400px; background: var(--primary); top: -100px; right: -100px;
-    }
-    .shape-2 {
-        width: 350px; height: 350px; background: var(--accent); bottom: -50px; left: -50px;
-    }
-
-    /* Glassmorphism Container */
-    .neon-login-container {
-        background: var(--glass-bg);
-        backdrop-filter: blur(var(--glass-blur));
-        -webkit-backdrop-filter: blur(var(--glass-blur));
-        border: 1px solid var(--glass-border);
-        padding: 3rem;
-        border-radius: 2rem;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        max-width: 450px;
-        margin: 60px auto;
-        position: relative;
-    }
-
-    .login-header { text-align: center; margin-bottom: 2.5rem; }
+    .login-header { text-align: center; margin-bottom: 2rem; z-index: 10; position: relative; }
     .login-header h1 { 
         color: var(--text-light) !important;
         font-size: 2rem;
@@ -315,12 +306,7 @@ login_styles = """
         padding: 0.75rem; background: var(--glass-bg); border: 1px solid var(--glass-border);
         border-radius: 0.75rem; color: var(--text-light); cursor: pointer; transition: all 0.3s ease;
     }
-    .social-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--text-muted); }
 </style>
-<div class="bg-shapes">
-    <div class="shape shape-1"></div>
-    <div class="shape shape-2"></div>
-</div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 """
 
@@ -392,16 +378,14 @@ def check_password():
         st.session_state["logout_requested"] = False
 
     if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
-        st.markdown("""
-        <div class="login-header">
-            <h1>Welcome Back</h1>
-            <p>Predicting risks, saving lives.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
-            st.markdown("<div class='neon-login-container'>", unsafe_allow_html=True)
+            st.markdown("""
+            <div class="login-header">
+                <h1>Welcome Back</h1>
+                <p>Predicting risks, saving lives.</p>
+            </div>
+            """, unsafe_allow_html=True)
             
             tab1, tab2 = st.tabs(["Login", "Register"])
             
@@ -486,7 +470,6 @@ def check_password():
                 <p>New Operator? <a href="#">[ Request Protocol ]</a></p>
             </div>
             """, unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
         return False
     else:
         return True
