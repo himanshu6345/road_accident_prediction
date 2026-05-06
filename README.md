@@ -1,4 +1,4 @@
-# 🚗 Dynamic Road Accident Prediction Platform
+# 🚗 Road Accident Prediction Platform
 
 A comprehensive, real-time, Machine Learning-powered web application built with Streamlit. This platform leverages Random Forest and Support Vector Machine (SVM) algorithms to predict the severity of road accidents based on environmental, vehicle, and driver conditions. 
 

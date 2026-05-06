@@ -148,7 +148,7 @@ init_db()
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="Dynamic Data Mining Predictor",
+    page_title="Road Accident Prediction Platform",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded",
